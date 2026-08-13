@@ -24,7 +24,7 @@ export class DiscordClient {
 
   async sendEmbed(embed: APIEmbed) {
     const channel = await this.createDM();
-    return this.rest.post(Routes.channelMessages(channel.id), {
+    this.rest.post(Routes.channelMessages(channel.id), {
       body: { embeds: [embed] },
     });
   }
