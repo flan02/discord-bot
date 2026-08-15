@@ -1,58 +1,60 @@
-// Bot will listen to interactions and respond accordingly (/meta, /ping)
-
+// app/api/interactions/route.ts
 import { NextResponse } from "next/server";
-import {
-  InteractionType,
-  InteractionResponseType,
-  verifyKey,
-} from "discord-interactions";
+import nacl from "tweetnacl";
+
+// Forzar ejecución dinámica en Next.js
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  const signature = req.headers.get("X-Signature-Ed25519");
-  const timestamp = req.headers.get("X-Signature-Timestamp");
-  const rawBody = await req.text();
+  try {
+    const signature = req.headers.get("x-signature-ed25519");
+    const timestamp = req.headers.get("x-signature-timestamp");
+    const rawBody = await req.text();
 
-  const publicKey = process.env.DISCORD_PUBLIC_KEY;
+    const publicKey = process.env.DISCORD_PUBLIC_KEY;
 
-  if (!publicKey) {
-    console.error("❌ Falta DISCORD_PUBLIC_KEY en las variables de entorno");
-    return new NextResponse("Server configuration error", { status: 500 });
-  }
-
-  // 1. Verificación de seguridad de Discord
-  const isValidRequest = verifyKey(
-    rawBody,
-    signature || "",
-    timestamp || "",
-    publicKey,
-  );
-
-  if (!isValidRequest) {
-    return new NextResponse("Invalid request signature", { status: 401 });
-  }
-
-  const message = JSON.parse(rawBody);
-
-  // 2. Discord envía un PING de verificación al configurar la URL
-  if (message.type === InteractionType.PING) {
-    return NextResponse.json({
-      type: InteractionResponseType.PONG,
-    });
-  }
-
-  // 3. Responder a los comandos de barra diagonal (Slash Commands)
-  if (message.type === InteractionType.APPLICATION_COMMAND) {
-    const { name } = message.data;
-
-    if (name === "ping") {
-      return NextResponse.json({
-        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: {
-          content: "🏓 the bot is alive and listening.",
-        },
+    if (!signature || !timestamp || !publicKey) {
+      return new NextResponse("Missing signature or public key", {
+        status: 401,
       });
     }
-  }
 
-  return NextResponse.json({ error: "Unknown interaction" }, { status: 400 });
+    // Validación de firma Ed25519 con tweetnacl
+    const isVerified = nacl.sign.detached.verify(
+      Buffer.from(timestamp + rawBody),
+      Buffer.from(signature, "hex"),
+      Buffer.from(publicKey, "hex"),
+    );
+
+    if (!isVerified) {
+      return new NextResponse("Invalid request signature", { status: 401 });
+    }
+
+    const message = JSON.parse(rawBody);
+
+    // 1. Manejo del PING de Discord (type: 1) -> Responde PONG (type: 1)
+    if (message.type === 1) {
+      return NextResponse.json({ type: 1 });
+    }
+
+    // 2. Manejo de Slash Commands (type: 2)
+    if (message.type === 2) {
+      const { name } = message.data;
+
+      if (name === "ping") {
+        return NextResponse.json({
+          type: 4, // CHANNEL_MESSAGE_WITH_SOURCE
+          data: {
+            content:
+              "🏓 ¡Pong! El bot HTTP en Next.js está vivo y funcionando.",
+          },
+        });
+      }
+    }
+
+    return NextResponse.json({ error: "Unknown interaction" }, { status: 400 });
+  } catch (error) {
+    console.error("Error en interaction handler:", error);
+    return new NextResponse("Internal Server Error", { status: 500 });
+  }
 }
