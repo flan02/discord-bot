@@ -12,12 +12,19 @@ export async function POST(req: Request) {
   const timestamp = req.headers.get("X-Signature-Timestamp");
   const rawBody = await req.text();
 
+  const publicKey = process.env.DISCORD_PUBLIC_KEY;
+
+  if (!publicKey) {
+    console.error("❌ Falta DISCORD_PUBLIC_KEY en las variables de entorno");
+    return new NextResponse("Server configuration error", { status: 500 });
+  }
+
   // 1. Verificación de seguridad de Discord
   const isValidRequest = verifyKey(
     rawBody,
     signature || "",
     timestamp || "",
-    process.env.DISCORD_PUBLIC_KEY || "",
+    publicKey,
   );
 
   if (!isValidRequest) {
