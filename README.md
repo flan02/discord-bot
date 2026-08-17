@@ -21,3 +21,7 @@ Landing page básica: Una página con un botón lindo de "Invitar bot a mi servi
 Panel de administración (Dashboard): Una vista privada para vos donde puedas cargar nuevos loadouts/metas de armas o ver qué servidores están usando el bot sin tener que tocar código ni entrar a la base de datos a mano.
 
 Leaderboard Web: Una página pública donde los pibes del servidor puedan entrar a ver las tablas de estadísticas completas en pantalla grande.
+
+#### Discord developer portal
+
+[url](https://discord.com/developers/applications/1535861016347418725/information)
