@@ -1,6 +1,11 @@
 // app/api/interactions/route.ts
 import { NextResponse } from "next/server";
 import nacl from "tweetnacl";
+import {
+  findWeaponBuild,
+  formatBuildEmbed,
+  getMetaBuilds,
+} from "@/services/meta";
 
 // Forzar ejecución dinámica en Next.js
 export const dynamic = "force-dynamic";
@@ -39,14 +44,48 @@ export async function POST(req: Request) {
 
     // 2. Manejo de Slash Commands (type: 2)
     if (message.type === 2) {
-      const { name } = message.data;
+      const { name, options } = message.data;
 
       if (name === "ping") {
         return NextResponse.json({
           type: 4, // CHANNEL_MESSAGE_WITH_SOURCE
           data: {
-            content:
-              "🏓 ¡Pong! El bot HTTP en Next.js está vivo y funcionando.",
+            content: "🏓 ¡Pong! The bot is active and running in Next.js.",
+          },
+        });
+      }
+
+      if (name === "meta") {
+        const weaponOption = options?.find(
+          (opt: { name: string; value: string }) => opt.name === "arma",
+        )?.value;
+
+        if (weaponOption) {
+          const build = findWeaponBuild(weaponOption);
+
+          if (!build) {
+            return NextResponse.json({
+              type: 4,
+              data: {
+                content: `❌ Arma no encontrada: **${weaponOption}**`,
+              },
+            });
+          }
+
+          return NextResponse.json({
+            type: 4,
+            data: {
+              embeds: [formatBuildEmbed(build)],
+            },
+          });
+        }
+
+        const allbuilds = getMetaBuilds();
+
+        return NextResponse.json({
+          type: 4,
+          data: {
+            embeds: allbuilds.map((b) => formatBuildEmbed(b)),
           },
         });
       }
