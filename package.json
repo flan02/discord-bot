@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@discordjs/rest": "^2.6.3",
+    "cheerio": "^1.2.0",
     "discord-api-types": "^0.38.53",
     "discord-interactions": "^4.4.0",
     "discord.js": "^14.27.0",

@@ -1,58 +1,194 @@
-// 1. Módulo Meta (WZHub) ➔ 2. Slash Command con opciones ➔ 3. Embeds visuales ➔ 4. API de Stats (Activision)
+// services/meta.ts
+import * as cheerio from "cheerio";
 
-import { WeaponBuild } from "@/types";
+export type WeaponCategory =
+  | "Fusil de asalto"
+  | "Subfusil"
+  | "Fusil de precisión"
+  | "Ametralladora ligera"
+  | "Fusil de combate"
+  | "Escopeta"
+  | "Pistola"
+  | "Warzone Meta";
 
-const META_LOADOUTS: WeaponBuild[] = [
+export interface Attachment {
+  slot: string;
+  name: string;
+}
+
+export interface WeaponBuild {
+  id: string;
+  name: string;
+  category?: WeaponCategory | string;
+  tier?: string;
+  rank?: string;
+  buildType?: string;
+  code?: string | null;
+  image?: string;
+  attachments: Attachment[];
+  aliases?: string[];
+}
+
+// Fallback local por si la web llega a fallar
+export const META_LOADOUTS: WeaponBuild[] = [
   {
-    id: "kar98k",
-    name: "Kar98k",
-    category: "Sniper Rifle",
-    tier: "Meta absolute",
-    image:
-      "https://www.wzhub.gg/_next/image?url=%2Fimages%2Fweapons%2Fkar98k.png&w=640&q=75",
+    id: "fg42",
+    name: "FG42",
+    category: "Fusil de asalto",
+    tier: "Meta Absoluto",
+    rank: "#1 Largo Alcance",
+    buildType: "SOPORTE DE FRANCOTIRADOR",
+    code: "A16-34FIQ-XHAUL-11",
     attachments: [
-      { slot: "Muzzle", name: "Sonic Suppressor L" },
-      { slot: "Barrel", name: "Prazisionsgewehr 762" },
-      { slot: "Optic", name: "Rangefinder 4x" },
-      { slot: "Stock", name: "Heavy Recon Stock" },
-      { slot: "Ammunition", name: "7.92x57mm High Grain" },
+      { slot: "Mira", name: "FANG HOVERPOINT ELO" },
+      { slot: "Bocacha", name: "SILENCIADOR REDWELL SHADE-X" },
+      { slot: "Acople", name: "GUARDA DIRGE" },
+      { slot: "Cargador", name: "CARGADOR AMPLIADO DEBASE" },
+      { slot: "Mods de Disparo", name: "8X57 MM BLINDADA" },
     ],
-  },
-  {
-    id: "superi46",
-    name: "Superi 46",
-    category: "SMG",
-    tier: "Meta absolute",
-    image:
-      "https://www.wzhub.gg/_next/image?url=%2Fimages%2Fweapons%2Fsuperi46.png&w=640&q=75",
-    attachments: [
-      { slot: "Muzzle", name: "ZEHMN35 Compensated Flash Hider" },
-      { slot: "Barrel", name: "Zulu OP3 Light Barrel" },
-      { slot: "Stock", name: "Rescue-9 Stock" },
-      { slot: "Underbarrel", name: "DR-6 Handstop" },
-      { slot: "Magazine", name: "40 Round Mag" },
-    ],
+    aliases: ["fg-42", "fg 42"],
   },
 ];
+
+/**
+ * Scraper dinámico en vivo contra wzstats.gg en español
+ */
+export async function scrapeLiveWeaponBuild(
+  rawQuery: string,
+): Promise<WeaponBuild | null> {
+  const slug = rawQuery
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  const targetUrl = `https://wzstats.gg/es/best-loadouts/${slug}`;
+
+  try {
+    const res = await fetch(targetUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "es-ES,es;q=0.9",
+      },
+      next: { revalidate: 3600 }, // Cache de 1 hora en Vercel
+    });
+
+    if (!res.ok) return null;
+
+    const html = await res.text();
+    const $ = cheerio.load(html);
+
+    // 1. Extraer nombre y rango
+    const rawTitle = $("title").text();
+    const weaponName =
+      rawTitle
+        .replace(/^Mejores clases de\s+/i, "")
+        .replace(/\s+-\s+.*$/i, "")
+        .trim() || rawQuery.toUpperCase();
+
+    const rank =
+      $(".category-position, .loadout-tag.first-place")
+        .first()
+        .text()
+        .replace(/\s+/g, " ")
+        .trim() || "Meta Actual";
+
+    // 2. Extraer código oficial de importación
+    const code = $(".weapon-build-code").first().text().trim() || null;
+
+    // 3. Extraer tipo de build
+    const buildType =
+      $("[class*='build-title'], [class*='loadout-title'], h4, h3")
+        .filter((_, el) => {
+          const t = $(el).text().toUpperCase();
+          return (
+            t.includes("FRANCOTIRADOR") ||
+            t.includes("VELOCIDAD") ||
+            t.includes("RECOMENDAD") ||
+            t.includes("ALCANCE")
+          );
+        })
+        .first()
+        .text()
+        .trim() || "Recomendado / Meta";
+
+    // 4. Extraer accesorios
+    const attachments: Attachment[] = [];
+    $(".attachment-row").each((_, el) => {
+      const name = $(el)
+        .find(".attachment-name-no-image")
+        .first()
+        .text()
+        .trim();
+      const slot = $(el).find(".slot-name-no-image").first().text().trim();
+
+      if (name && slot && attachments.length < 5) {
+        attachments.push({ slot, name });
+      }
+    });
+
+    return {
+      id: slug,
+      name: weaponName.toUpperCase(),
+      category: "Warzone Meta",
+      tier: "Meta Actual",
+      rank,
+      buildType,
+      code,
+      attachments,
+    };
+  } catch (error) {
+    console.error(`Error scraping live build for ${slug}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Busca el arma: intenta primero en vivo; si no existe o falla, busca en local
+ */
+export async function findWeaponBuild(
+  query: string,
+): Promise<WeaponBuild | undefined> {
+  const liveBuild = await scrapeLiveWeaponBuild(query);
+  if (liveBuild && liveBuild.attachments.length > 0) {
+    return liveBuild;
+  }
+
+  // Fallback a array local
+  const clean = query.toLowerCase().trim();
+  return META_LOADOUTS.find(
+    (w) =>
+      w.name.toLowerCase().includes(clean) ||
+      w.id.toLowerCase().includes(clean) ||
+      w.aliases?.some((alias) => alias.toLowerCase().includes(clean)),
+  );
+}
 
 export function getMetaBuilds(): WeaponBuild[] {
   return META_LOADOUTS;
 }
 
-export function findWeaponBuild(query: string): WeaponBuild | undefined {
-  const cleanQuery = query.toLowerCase().trim();
-  return META_LOADOUTS.find(
-    (w) =>
-      w.name.toLowerCase().includes(cleanQuery) ||
-      w.id.toLowerCase().includes(cleanQuery),
-  );
-}
-
+/**
+ * Genera el Embed formateado para Discord con el bloque de código copiable
+ */
 export function formatBuildEmbed(build: WeaponBuild) {
+  const codeBlock = build.code
+    ? `**Código para importar en Warzone:**\n\`\`\`\n${build.code}\n\`\`\`\n*(Copiá el código y pegalo directo en el Armero)*`
+    : `*(Código de importación rápida no disponible)*`;
+
+  const description = [
+    build.rank ? `**Clasificación:** ${build.rank}` : undefined,
+    build.buildType ? `**Variante:** ${build.buildType}` : undefined,
+    `\n${codeBlock}`,
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
   return {
-    title: `💥 Meta class: ${build.name}`,
-    description: `**Category:** ${build.category} | **Tier:** ${build.tier}`,
-    color: 0xff4500, // Color naranja / Warzone
+    title: `💥 Clase Meta: ${build.name}`,
+    description,
+    color: 0x1e90ff, // Dodger Blue
     fields: build.attachments.map((att) => ({
       name: `🔧 ${att.slot}`,
       value: att.name,
@@ -60,7 +196,7 @@ export function formatBuildEmbed(build: WeaponBuild) {
     })),
     thumbnail: build.image ? { url: build.image } : undefined,
     footer: {
-      text: "Warzone Meta • Fuente: WZHub",
+      text: "Warzone Meta • Datos oficiales wzstats.gg/es",
     },
     timestamp: new Date().toISOString(),
   };

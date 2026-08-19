@@ -1,99 +1,75 @@
 // app/api/interactions/route.ts
 import { NextResponse } from "next/server";
-import nacl from "tweetnacl";
-import {
-  findWeaponBuild,
-  formatBuildEmbed,
-  getMetaBuilds,
-} from "@/services/meta";
+import { findWeaponBuild, formatBuildEmbed } from "@/services/meta";
 
-// Forzar ejecución dinámica en Next.js
-export const dynamic = "force-dynamic";
+// Tipo 1 de Discord: PING (Handshake de seguridad)
+// Tipo 2 de Discord: APPLICATION_COMMAND (Comando Slash)
+const InteractionType = {
+  PING: 1,
+  APPLICATION_COMMAND: 2,
+};
+
+// Tipo de respuesta para comandos
+const InteractionResponseType = {
+  PONG: 1,
+  CHANNEL_MESSAGE_WITH_SOURCE: 4,
+};
 
 export async function POST(req: Request) {
   try {
-    const signature = req.headers.get("x-signature-ed25519");
-    const timestamp = req.headers.get("x-signature-timestamp");
-    const rawBody = await req.text();
+    const body = await req.json();
 
-    const publicKey = process.env.DISCORD_PUBLIC_KEY;
-
-    if (!signature || !timestamp || !publicKey) {
-      return new NextResponse("Missing signature or public key", {
-        status: 401,
-      });
+    // 1. Handshake inicial que Discord pide para validar la URL
+    if (body.type === InteractionType.PING) {
+      return NextResponse.json({ type: InteractionResponseType.PONG });
     }
 
-    // Validación de firma Ed25519 con tweetnacl
-    const isVerified = nacl.sign.detached.verify(
-      Buffer.from(timestamp + rawBody),
-      Buffer.from(signature, "hex"),
-      Buffer.from(publicKey, "hex"),
-    );
+    // 2. Si es un comando slash
+    if (body.type === InteractionType.APPLICATION_COMMAND) {
+      const commandName = body.data.name;
 
-    if (!isVerified) {
-      return new NextResponse("Invalid request signature", { status: 401 });
-    }
+      if (commandName === "meta") {
+        // Obtenemos el parámetro que pasó el usuario (ej: "fg42", "cbrs 3")
+        const options = body.data.options || [];
+        const weaponOption =
+          options.find(
+            (opt: { name: string; value: string }) => opt.name === "weapon",
+          )?.value || "fg42";
 
-    const message = JSON.parse(rawBody);
+        // Ejecutamos el scraper que armamos en services/meta.ts
+        const build = await findWeaponBuild(weaponOption);
 
-    // 1. Manejo del PING de Discord (type: 1) -> Responde PONG (type: 1)
-    if (message.type === 1) {
-      return NextResponse.json({ type: 1 });
-    }
-
-    // 2. Manejo de Slash Commands (type: 2)
-    if (message.type === 2) {
-      const { name, options } = message.data;
-
-      if (name === "ping") {
-        return NextResponse.json({
-          type: 4, // CHANNEL_MESSAGE_WITH_SOURCE
-          data: {
-            content: "🏓 ¡Pong! The bot is active and running in Next.js.",
-          },
-        });
-      }
-
-      if (name === "meta") {
-        const weaponOption = options?.find(
-          (opt: { name: string; value: string }) => opt.name === "arma",
-        )?.value;
-
-        if (weaponOption) {
-          const build = findWeaponBuild(weaponOption);
-
-          if (!build) {
-            return NextResponse.json({
-              type: 4,
-              data: {
-                content: `❌ Arma no encontrada: **${weaponOption}**`,
-              },
-            });
-          }
-
+        if (!build) {
           return NextResponse.json({
-            type: 4,
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: {
-              embeds: [formatBuildEmbed(build)],
+              content: `❌ No se encontró una clase meta para **${weaponOption}**. Verificá el nombre.`,
+              flags: 64, // 64 = Ephemeral (solo lo ve quien ejecutó el comando)
             },
           });
         }
 
-        const allbuilds = getMetaBuilds();
+        // Armamos el Embed visual con el código copiable
+        const embed = formatBuildEmbed(build);
 
         return NextResponse.json({
-          type: 4,
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
-            embeds: allbuilds.map((b) => formatBuildEmbed(b)),
+            embeds: [embed],
           },
         });
       }
     }
 
-    return NextResponse.json({ error: "Unknown interaction" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Comando no reconocido" },
+      { status: 400 },
+    );
   } catch (error) {
-    console.error("Error en interaction handler:", error);
-    return new NextResponse("Internal Server Error", { status: 500 });
+    console.error("Error procesando interaction:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }
