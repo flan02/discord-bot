@@ -61,6 +61,7 @@ export async function POST(req: Request) {
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
             embeds: [embed],
+            flags: 64,
           },
         });
       }
@@ -76,7 +77,7 @@ export async function POST(req: Request) {
 
         return NextResponse.json({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: { embeds: [embed] },
+          data: { embeds: [embed], flags: 64 },
         });
       }
 
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
         const embed = formatBuildEmbed(build);
         return NextResponse.json({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: { embeds: [embed] },
+          data: { embeds: [embed], flags: 64 },
         });
       }
     }
