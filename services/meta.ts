@@ -237,7 +237,7 @@ export async function fetchMetaRanking(): Promise<MetaRankedWeapon[]> {
     });
 
     // ✂️ Salteamos los banners iniciales y tomamos las 10 armas
-    return rawList.slice(3, 13).map((text) => {
+    return rawList.slice(2, 13).map((text) => {
       // 1. Detectamos si tiene Buff, Nerf o New en el string
       const tags: string[] = [];
       if (/buff/i.test(text)) tags.push("🟢 BUFF");
