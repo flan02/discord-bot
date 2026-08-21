@@ -19,11 +19,15 @@ const commands = [
       },
     ],
   },
+  {
+    name: "ranking",
+    description: "Muestra el Top 10 de armas meta del parche actual de Warzone",
+  },
 ];
 
 async function register() {
   if (!APP_ID || !GUILD_ID || !BOT_TOKEN) {
-    console.error("❌ Missing required environment variables in .env.local");
+    console.error("❌ Missing required environment variables in .env");
     process.exit(1);
   }
   const url = `https://discord.com/api/v10/applications/${APP_ID}/guilds/${GUILD_ID}/commands`;
@@ -39,7 +43,7 @@ async function register() {
 
   if (response.ok) {
     console.log(
-      "✅ Commands /ping and /meta registered successfully in the server.",
+      "✅ Commands /ping and /meta and /ranking registered successfully in the server.",
     );
   } else {
     console.error("❌ Error al registrar comando:", await response.text());
