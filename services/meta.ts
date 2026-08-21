@@ -236,12 +236,21 @@ export async function fetchMetaRanking(): Promise<MetaRankedWeapon[]> {
       }
     });
 
-    // ✂️ Salteamos los 3 primeros (banners) y tomamos las 10 armas meta
+    // ✂️ Salteamos los banners iniciales y tomamos las 10 armas
     return rawList.slice(3, 13).map((text) => {
+      // 1. Detectamos si tiene Buff, Nerf o New en el string
+      const tags: string[] = [];
+      if (/buff/i.test(text)) tags.push("🟢 BUFF");
+      if (/nerf/i.test(text)) tags.push("🔴 NERF");
+      if (/new/i.test(text)) tags.push("🔵 NEW");
+
+      // 2. Limpiamos las palabras para que el nombre quede puro
       const cleanName = text.replace(/\b(buff|nerf|new)\b/gi, "").trim();
+
       return {
         name: cleanName.toUpperCase(),
         slug: cleanName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        status: tags.join(" • "),
       };
     });
   } catch (error) {
@@ -254,29 +263,28 @@ export function formatRankingEmbed(list: MetaRankedWeapon[]) {
   if (list.length === 0) {
     return {
       title: "🏆 Top Meta Warzone",
-      description:
-        "No se pudieron obtener las armas meta en este momento. Intentá más tarde.",
+      description: "No se pudieron obtener las armas meta en este momento.",
       color: 0xff4500,
     };
   }
 
   const fields = list.map((w, index) => {
-    const statusText = w.status ? ` \`[${w.status}]\`` : "";
+    const badge = w.status ? ` \`[${w.status}]\`` : "";
     return {
-      name: `${index + 1}. ${w.name}${statusText}`,
-      value: `👉 \`/meta weapon:${w.slug}\``,
+      name: `${index + 1}. ${w.name}${badge}`,
+      value: `👉 Ver clase: \`/meta weapon:${w.slug}\``,
       inline: false,
     };
   });
 
   return {
-    title: "🏆 TOP ARMAS META — WARZONE",
+    title: "🏆 TOP 10 ARMAS META — WARZONE",
     description:
-      "Estas son las armas más fuertes del parche actual clasificadas por rol.\nUsa `/meta weapon:[nombre]` para ver los accesorios y el código copiable.",
+      "Armas más fuertes del parche actual con su estado de balance:\nUsá el comando de cada arma para ver accesorios y código copiable.",
     color: 0xff4500,
     fields,
     footer: {
-      text: "Warzone Meta Bot • Datos en vivo de wzstats.gg/es",
+      text: "Warzone Meta Bot • Datos de wzstats.gg/es",
     },
     timestamp: new Date().toISOString(),
   };
