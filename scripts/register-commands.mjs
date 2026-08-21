@@ -1,5 +1,4 @@
 const APP_ID = process.env.DISCORD_APPLICATION_ID;
-const GUILD_ID = process.env.DISCORD_GUILD_ID;
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 
 const commands = [
@@ -26,11 +25,13 @@ const commands = [
 ];
 
 async function register() {
-  if (!APP_ID || !GUILD_ID || !BOT_TOKEN) {
+  if (!APP_ID || !BOT_TOKEN) {
     console.error("❌ Missing required environment variables in .env");
     process.exit(1);
   }
-  const url = `https://discord.com/api/v10/applications/${APP_ID}/guilds/${GUILD_ID}/commands`;
+
+  // Endpoint global (sin guild_id) para que funcione en todos los servidores
+  const url = `https://discord.com/api/v10/applications/${APP_ID}/commands`;
 
   const response = await fetch(url, {
     method: "PUT",
@@ -42,14 +43,10 @@ async function register() {
   });
 
   if (response.ok) {
-    console.log(
-      "✅ Commands /ping and /meta and /ranking registered successfully in the server.",
-    );
+    console.log("✅ Commands registered globally for all servers!");
   } else {
-    console.error("❌ Error al registrar comando:", await response.text());
+    console.error("❌ Error al registrar comandos:", await response.text());
   }
 }
 
 register();
-
-// node --env-file=.env scripts/register-commands.mjs

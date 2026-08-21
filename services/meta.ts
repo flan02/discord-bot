@@ -264,7 +264,7 @@ export function formatRankingEmbed(list: MetaRankedWeapon[]) {
     const statusText = w.status ? ` \`[${w.status}]\`` : "";
     return {
       name: `${index + 1}. ${w.name}${statusText}`,
-      value: `📍 **Rol:** ${w.rank} | **Tipo:** ${w.category}\n👉 \`/meta weapon:${w.slug}\``,
+      value: `👉 \`/meta weapon:${w.slug}\``,
       inline: false,
     };
   });
