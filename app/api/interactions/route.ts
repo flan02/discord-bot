@@ -1,6 +1,11 @@
 // app/api/interactions/route.ts
 import { NextResponse } from "next/server";
-import { findWeaponBuild, formatBuildEmbed } from "@/services/meta";
+import {
+  fetchMetaRanking,
+  findWeaponBuild,
+  formatBuildEmbed,
+  formatRankingEmbed,
+} from "@/services/meta";
 
 // Tipo 1 de Discord: PING (Handshake de seguridad)
 // Tipo 2 de Discord: APPLICATION_COMMAND (Comando Slash)
@@ -57,6 +62,47 @@ export async function POST(req: Request) {
           data: {
             embeds: [embed],
           },
+        });
+      }
+    }
+
+    if (body.type === InteractionType.APPLICATION_COMMAND) {
+      const commandName = body.data.name;
+
+      // 1. Comando: /ranking (Muestra el Top de armas)
+      if (commandName === "ranking") {
+        const list = await fetchMetaRanking(); // Llama al scraper de la home
+        const embed = formatRankingEmbed(list);
+
+        return NextResponse.json({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: { embeds: [embed] },
+        });
+      }
+
+      // 2. Comando: /meta [arma] (Muestra la clase y código del arma específica)
+      if (commandName === "meta") {
+        const options = body.data.options || [];
+        const weaponOption =
+          options.find(
+            (opt: { name: string; value: string }) => opt.name === "weapon",
+          )?.value || "an-94";
+
+        const build = await findWeaponBuild(weaponOption);
+        if (!build) {
+          return NextResponse.json({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: {
+              content: `❌ No se encontró una clase meta para **${weaponOption}**.`,
+              flags: 64, // Ephemeral
+            },
+          });
+        }
+
+        const embed = formatBuildEmbed(build);
+        return NextResponse.json({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: { embeds: [embed] },
         });
       }
     }

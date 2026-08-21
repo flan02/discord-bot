@@ -29,6 +29,14 @@ export interface WeaponBuild {
   aliases?: string[];
 }
 
+export interface MetaRankedWeapon {
+  name: string;
+  slug: string;
+  rank?: string;
+  category?: string;
+  status?: string;
+}
+
 // Fallback local por si la web llega a fallar
 export const META_LOADOUTS: WeaponBuild[] = [
   {
@@ -178,7 +186,7 @@ export function formatBuildEmbed(build: WeaponBuild) {
     : `*(Código de importación rápida no disponible)*`;
 
   const description = [
-    build.rank ? `**Clasificación:** ${build.rank}` : undefined,
+    build.rank ? `**Clasificación:** ${build.rank} ` : undefined,
     build.buildType ? `**Variante:** ${build.buildType}` : undefined,
     `\n${codeBlock}`,
   ]
@@ -197,6 +205,78 @@ export function formatBuildEmbed(build: WeaponBuild) {
     thumbnail: build.image ? { url: build.image } : undefined,
     footer: {
       text: "Warzone Meta • Datos oficiales wzstats.gg/es",
+    },
+    timestamp: new Date().toISOString(),
+  };
+}
+
+export async function fetchMetaRanking(): Promise<MetaRankedWeapon[]> {
+  const TARGET_URL = "https://wzstats.gg/es";
+
+  try {
+    const res = await fetch(TARGET_URL, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "es-ES,es;q=0.9",
+      },
+      next: { revalidate: 3600 }, // Caché de 1 hora en Vercel
+    });
+
+    if (!res.ok) return [];
+
+    const html = await res.text();
+    const $ = cheerio.load(html);
+
+    const rawList: string[] = [];
+    $("h1, h2, h3, h4, .font-bold").each((_, el) => {
+      const t = $(el).text().replace(/\s+/g, " ").trim();
+      if (t && t.length > 1 && t.length < 35 && !rawList.includes(t)) {
+        rawList.push(t);
+      }
+    });
+
+    // ✂️ Salteamos los 3 primeros (banners) y tomamos las 10 armas meta
+    return rawList.slice(3, 13).map((text) => {
+      const cleanName = text.replace(/\b(buff|nerf|new)\b/gi, "").trim();
+      return {
+        name: cleanName.toUpperCase(),
+        slug: cleanName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      };
+    });
+  } catch (error) {
+    console.error("Error al obtener ranking meta:", error);
+    return [];
+  }
+}
+
+export function formatRankingEmbed(list: MetaRankedWeapon[]) {
+  if (list.length === 0) {
+    return {
+      title: "🏆 Top Meta Warzone",
+      description:
+        "No se pudieron obtener las armas meta en este momento. Intentá más tarde.",
+      color: 0xff4500,
+    };
+  }
+
+  const fields = list.map((w, index) => {
+    const statusText = w.status ? ` \`[${w.status}]\`` : "";
+    return {
+      name: `${index + 1}. ${w.name}${statusText}`,
+      value: `📍 **Rol:** ${w.rank} | **Tipo:** ${w.category}\n👉 \`/meta weapon:${w.slug}\``,
+      inline: false,
+    };
+  });
+
+  return {
+    title: "🏆 TOP ARMAS META — WARZONE",
+    description:
+      "Estas son las armas más fuertes del parche actual clasificadas por rol.\nUsa `/meta weapon:[nombre]` para ver los accesorios y el código copiable.",
+    color: 0xff4500,
+    fields,
+    footer: {
+      text: "Warzone Meta Bot • Datos en vivo de wzstats.gg/es",
     },
     timestamp: new Date().toISOString(),
   };
