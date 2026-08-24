@@ -98,19 +98,116 @@ export async function POST(req: Request) {
       }
 
       // Comando: /compare weapon1 weapon2 [table]
+      // if (commandName === "compare") {
+      //   const options = body.data.options || [];
+
+      //   const w1Input = options.find(
+      //     (opt: { name: string; value: string }) => opt.name === "weapon1",
+      //   )?.value as string;
+
+      //   const w2Input = options.find(
+      //     (opt: { name: string; value: string }) => opt.name === "weapon2",
+      //   )?.value as string;
+
+      //   const showTable =
+      //     (options.find(
+      //       (opt: { name: string; value: boolean }) =>
+      //         opt.name === "table" || opt.name === "tabla",
+      //     )?.value as boolean) || false;
+
+      //   if (!w1Input || !w2Input) {
+      //     return NextResponse.json({
+      //       type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+      //       data: {
+      //         content:
+      //           "⚠️ Debés especificar ambas armas para comparar. Ej: `/compare weapon1:an-94 weapon2:fg42`",
+      //         flags: 64,
+      //       },
+      //     });
+      //   }
+
+      //   try {
+      //     const statsMap = await fetchAllWeaponStats();
+
+      //     const cleanKey1 = w1Input.toLowerCase().replace(/[^a-z0-9]/g, "");
+      //     const cleanKey2 = w2Input.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+      //     let weapon1 = statsMap.get(cleanKey1);
+      //     let weapon2 = statsMap.get(cleanKey2);
+
+      //     if (!weapon1) {
+      //       for (const [key, val] of statsMap.entries()) {
+      //         if (key.includes(cleanKey1) || cleanKey1.includes(key)) {
+      //           weapon1 = val;
+      //           break;
+      //         }
+      //       }
+      //     }
+
+      //     if (!weapon2) {
+      //       for (const [key, val] of statsMap.entries()) {
+      //         if (key.includes(cleanKey2) || cleanKey2.includes(key)) {
+      //           weapon2 = val;
+      //           break;
+      //         }
+      //       }
+      //     }
+
+      //     if (!weapon1 || !weapon2) {
+      //       const missing =
+      //         !weapon1 && !weapon2
+      //           ? `"${w1Input}" ni "${w2Input}"`
+      //           : !weapon1
+      //             ? `"${w1Input}"`
+      //             : `"${w2Input}"`;
+
+      //       return NextResponse.json({
+      //         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+      //         data: {
+      //           content: `❌ No se encontraron estadísticas para ${missing}. Verificá los nombres.`,
+      //           flags: 64,
+      //         },
+      //       });
+      //     }
+
+      //     const responsePayload = formatComparisonResponse(
+      //       weapon1,
+      //       weapon2,
+      //       showTable,
+      //     );
+
+      //     return NextResponse.json({
+      //       type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+      //       data: responsePayload,
+      //     });
+      //   } catch (error) {
+      //     console.error("Error procesando /compare:", error);
+      //     return NextResponse.json({
+      //       type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+      //       data: {
+      //         content: "❌ Ocurrió un error al obtener la comparativa.",
+      //         flags: 64,
+      //       },
+      //     });
+      //   }
+      // }
+
       if (commandName === "compare") {
-        const options = body.data.options || [];
-        const w1Input = options.find(
-          (opt: { name: string; value: string }) => opt.name === "weapon1",
-        )?.value as string;
-        const w2Input = options.find(
-          (opt: { name: string; value: string }) => opt.name === "weapon2",
-        )?.value as string;
-        const showTable =
-          (options.find(
-            (opt: { name: string; value: boolean }) =>
-              opt.name === "table" || opt.name === "tabla",
-          )?.value as boolean) || false;
+        const options: Array<{
+          name: string;
+          value: string | number | boolean;
+        }> = body.data.options || [];
+
+        const w1Input = options.find((opt) => opt.name === "weapon1")?.value as
+          | string
+          | undefined;
+        const w2Input = options.find((opt) => opt.name === "weapon2")?.value as
+          | string
+          | undefined;
+        const showTable = Boolean(
+          options.find((opt) => opt.name === "table" || opt.name === "tabla")
+            ?.value,
+        );
 
         if (!w1Input || !w2Input) {
           return NextResponse.json({
