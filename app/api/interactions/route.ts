@@ -107,7 +107,8 @@ export async function POST(req: Request) {
         )?.value as string;
         const showTable =
           (options.find(
-            (opt: { name: string; value: boolean }) => opt.name === "table",
+            (opt: { name: string; value: boolean }) =>
+              opt.name === "table" || opt.name === "tabla",
           )?.value as boolean) || false;
 
         if (!w1Input || !w2Input) {
