@@ -22,6 +22,31 @@ const commands = [
     name: "ranking",
     description: "Muestra el Top 10 de armas meta del parche actual de Warzone",
   },
+  {
+    name: "compare",
+    description:
+      "Compara estadísticas clave (TTK, daño, alcance, agilidad) entre 2 armas",
+    options: [
+      {
+        name: "weapon1",
+        description: "Primera arma a comparar (ej: an-94)",
+        type: 3, // STRING
+        required: true,
+      },
+      {
+        name: "weapon2",
+        description: "Segunda arma a comparar (ej: fg42)",
+        type: 3, // STRING
+        required: true,
+      },
+      {
+        name: "table",
+        description: "¿Mostrar cuadro detallado de daño por zonas del cuerpo?",
+        type: 5, // BOOLEAN
+        required: false,
+      },
+    ],
+  },
 ];
 
 async function register() {
@@ -43,7 +68,9 @@ async function register() {
   });
 
   if (response.ok) {
-    console.log("✅ Commands registered globally for all servers!");
+    console.log(
+      "✅ Comandos (/ping, /ranking, /meta, /compare) registrados exitosamente a nivel global!",
+    );
   } else {
     console.error("❌ Error al registrar comandos:", await response.text());
   }

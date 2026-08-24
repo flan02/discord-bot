@@ -22,8 +22,6 @@ Panel de administración (Dashboard): Una vista privada para vos donde puedas ca
 
 Leaderboard Web: Una página pública donde los pibes del servidor puedan entrar a ver las tablas de estadísticas completas en pantalla grande.
 
-### Agregar nuevas funciones al bot
-
 #### Discord developer portal
 
 [url](https://discord.com/developers/applications/1535861016347418725/information)

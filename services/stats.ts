@@ -1,0 +1,268 @@
+import * as cheerio from "cheerio";
+
+export interface WeaponStats {
+  name: string;
+  ttkShort: number; // Corto alcance (ms)
+  ttkLong: number; // Largo alcance (ms)
+  fireRate: number; // rpm
+  damagePerMag: number;
+  bulletVelocity: number; // m/s
+  effectiveRange: number; // metros
+  recoil: number; // °/s vertical o general
+  adsTime: number; // ms
+  moveSpeed: number; // m/s
+  hipfireSpread: number; // °
+  hitboxes: {
+    distanceRanges: string[];
+    head: number[];
+    neck: number[];
+    chest: number[];
+    extremities: number[];
+  };
+}
+
+function normalizeName(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/actualizado/gi, "")
+    .replace(/[^a-z0-9]/g, "")
+    .trim();
+}
+
+function parseNumber(text: string): number {
+  const match = text.match(/[\d.]+/);
+  return match ? parseFloat(match[0]) : 0;
+}
+
+function renderBar(
+  valA: number,
+  valB: number,
+  lowerIsBetter = false,
+  maxScore = 10,
+): { barA: string; barB: string } {
+  if (valA === 0 && valB === 0)
+    return { barA: "░".repeat(maxScore), barB: "░".repeat(maxScore) };
+
+  const winA = lowerIsBetter ? valA < valB : valA > valB;
+  const winB = lowerIsBetter ? valB < valA : valB > valA;
+
+  const maxVal = Math.max(valA, valB);
+  const ratioA = Math.max(1, Math.round((valA / maxVal) * maxScore));
+  const ratioB = Math.max(1, Math.round((valB / maxVal) * maxScore));
+
+  const barA = `${"█".repeat(ratioA)}${"░".repeat(maxScore - ratioA)} ${winA ? "🏆" : ""}`;
+  const barB = `${"█".repeat(ratioB)}${"░".repeat(maxScore - ratioB)} ${winB ? "🏆" : ""}`;
+
+  return { barA, barB };
+}
+
+export async function fetchAllWeaponStats(): Promise<Map<string, WeaponStats>> {
+  const url = "https://wzstats.gg/es/warzone/battle-royale/stats";
+  const res = await fetch(url, {
+    next: { revalidate: 3600 * 6 }, // Cache de 6 horas en Next.js
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept-Language": "es-ES,es;q=0.9",
+    },
+  });
+
+  if (!res.ok) throw new Error("Error al obtener datos de stats de Warzone");
+
+  const html = await res.text();
+  const $ = cheerio.load(html);
+  const weaponsMap = new Map<string, WeaponStats>();
+
+  // 1. Extraer TTK Promedio
+  $(".avg-row-head").each((_, el) => {
+    const rawName = $(el)
+      .text()
+      .replace(/actualizado/gi, "")
+      .trim();
+    const key = normalizeName(rawName);
+    if (!key) return;
+
+    const row = $(el).parent();
+    const cells = row
+      .find(".avg-cell")
+      .map((_, c) => parseNumber($(c).text()))
+      .get();
+
+    weaponsMap.set(key, {
+      name: rawName,
+      ttkShort: cells[0] || 600,
+      ttkLong: cells[2] || cells[1] || 700,
+      fireRate: 0,
+      damagePerMag: 0,
+      bulletVelocity: 0,
+      effectiveRange: 0,
+      recoil: 0,
+      adsTime: 0,
+      moveSpeed: 0,
+      hipfireSpread: 0,
+      hitboxes: {
+        distanceRanges: ["0-54m", "54-72m", "72m+"],
+        head: [0, 0, 0],
+        neck: [0, 0, 0],
+        chest: [0, 0, 0],
+        extremities: [0, 0, 0],
+      },
+    });
+  });
+
+  // 2. Extraer Secciones Generales (.st-data-row)
+  $(".st-data-row").each((_, row) => {
+    const rawText = $(row).text();
+    for (const [key, weapon] of weaponsMap.entries()) {
+      if (
+        rawText.toLowerCase().includes(key) ||
+        rawText.includes(weapon.name)
+      ) {
+        const textValues = $(row)
+          .children()
+          .map((_, c) => $(c).text().trim())
+          .get();
+        const nums = textValues.map((t) => parseNumber(t)).filter((n) => n > 0);
+
+        if (rawText.includes("rpm")) {
+          weapon.fireRate = nums[0] || weapon.fireRate;
+          weapon.damagePerMag = nums[1] || weapon.damagePerMag;
+        } else if (rawText.includes("m/s") && !rawText.includes("°/s")) {
+          weapon.bulletVelocity = nums[0] || weapon.bulletVelocity;
+          weapon.effectiveRange = nums[2] || nums[1] || weapon.effectiveRange;
+        } else if (rawText.includes("°/s")) {
+          weapon.recoil = nums[1] || nums[0] || weapon.recoil;
+        } else if (rawText.includes("ms") && !rawText.includes("rpm")) {
+          weapon.adsTime = nums[0] || weapon.adsTime;
+        } else if (rawText.includes("°") && !rawText.includes("°/s")) {
+          weapon.hipfireSpread = nums[0] || weapon.hipfireSpread;
+        }
+      }
+    }
+  });
+
+  // 3. Extraer Hitboxes / Daño por partes del cuerpo
+  let currentDistances: string[] = ["0-54m", "54-72m", "72m+"];
+  $(".dp-head").each((_, el) => {
+    const dists = $(el)
+      .find("div, span")
+      .map((_, d) => $(d).text().trim())
+      .get()
+      .filter(Boolean);
+    if (dists.length >= 2) currentDistances = dists;
+  });
+
+  $(".dp-row").each((_, row) => {
+    const label = $(row).find(".dp-cell-loc").text().trim().toLowerCase();
+    const vals = $(row)
+      .find(".dp-cell-val")
+      .map((_, c) => parseNumber($(c).text()))
+      .get();
+
+    for (const weapon of weaponsMap.values()) {
+      weapon.hitboxes.distanceRanges = currentDistances;
+      if (label.includes("cabeza")) weapon.hitboxes.head = vals;
+      else if (label.includes("cuello")) weapon.hitboxes.neck = vals;
+      else if (label.includes("pecho")) weapon.hitboxes.chest = vals;
+      else if (
+        label.includes("estómago") ||
+        label.includes("brazos") ||
+        label.includes("piernas")
+      ) {
+        weapon.hitboxes.extremities = vals;
+      }
+    }
+  });
+
+  return weaponsMap;
+}
+
+export function formatComparisonResponse(
+  w1: WeaponStats,
+  w2: WeaponStats,
+  showTable = false,
+) {
+  const ttkShortBars = renderBar(w1.ttkShort, w2.ttkShort, true);
+  const rangeBars = renderBar(w1.effectiveRange, w2.effectiveRange, false);
+  const adsBars = renderBar(w1.adsTime, w2.adsTime, true);
+  const fireRateBars = renderBar(w1.fireRate, w2.fireRate, false);
+
+  let verdict = "";
+  if (w1.ttkShort < w2.ttkShort && w1.effectiveRange >= w2.effectiveRange) {
+    verdict = `**${w1.name}** es superior tanto en letalidad a corta distancia como en alcance efectivo.`;
+  } else if (w1.ttkShort < w2.ttkShort) {
+    verdict = `**${w1.name}** gana en combate cercano por mejor TTK (${w1.ttkShort}ms), mientras que **${w2.name}** destaca en control/alcance (${w2.effectiveRange}m).`;
+  } else {
+    verdict = `**${w2.name}** tiene una ventaja notable en TTK y tiempo de reacción general.`;
+  }
+
+  const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+    {
+      name: "⚡ Letalidad (TTK Corto Alcance)",
+      value: `**${w1.name}**: \`${w1.ttkShort || "N/D"} ms\` ${ttkShortBars.barA}\n**${w2.name}**: \`${w2.ttkShort || "N/D"} ms\` ${ttkShortBars.barB}`,
+      inline: false,
+    },
+    {
+      name: "📏 Rango Efectivo",
+      value: `**${w1.name}**: \`${w1.effectiveRange || "N/D"} m\` ${rangeBars.barA}\n**${w2.name}**: \`${w2.effectiveRange || "N/D"} m\` ${rangeBars.barB}`,
+      inline: false,
+    },
+    {
+      name: "🏃 Agilidad (Tiempo de Apuntado ADS)",
+      value: `**${w1.name}**: \`${w1.adsTime || "N/D"} ms\` ${adsBars.barA}\n**${w2.name}**: \`${w2.adsTime || "N/D"} ms\` ${adsBars.barB}`,
+      inline: false,
+    },
+    {
+      name: "🔥 Cadencia de Fuego",
+      value: `**${w1.name}**: \`${w1.fireRate || "N/D"} RPM\` ${fireRateBars.barA}\n**${w2.name}**: \`${w2.fireRate || "N/D"} RPM\` ${fireRateBars.barB}`,
+      inline: false,
+    },
+    {
+      name: "📋 Recomendación",
+      value: verdict,
+      inline: false,
+    },
+  ];
+
+  if (showTable) {
+    const r = w1.hitboxes.distanceRanges[0] || "0-50m";
+    const headBars = renderBar(
+      w1.hitboxes.head[0] || 0,
+      w2.hitboxes.head[0] || 0,
+      false,
+    );
+    const chestBars = renderBar(
+      w1.hitboxes.chest[0] || 0,
+      w2.hitboxes.chest[0] || 0,
+      false,
+    );
+    const extBars = renderBar(
+      w1.hitboxes.extremities[0] || 0,
+      w2.hitboxes.extremities[0] || 0,
+      false,
+    );
+
+    fields.push({
+      name: `🎯 Daño por Impacto (${r})`,
+      value:
+        `**Cabeza:**\n🟢 ${w1.name}: \`${w1.hitboxes.head[0] || "N/D"}\` ${headBars.barA}\n🔴 ${w2.name}: \`${w2.hitboxes.head[0] || "N/D"}\` ${headBars.barB}\n\n` +
+        `**Pecho / Torso:**\n🟢 ${w1.name}: \`${w1.hitboxes.chest[0] || "N/D"}\` ${chestBars.barA}\n🔴 ${w2.name}: \`${w2.hitboxes.chest[0] || "N/D"}\` ${chestBars.barB}\n\n` +
+        `**Extremidades:**\n🟢 ${w1.name}: \`${w1.hitboxes.extremities[0] || "N/D"}\` ${extBars.barA}\n🔴 ${w2.name}: \`${w2.hitboxes.extremities[0] || "N/D"}\` ${extBars.barB}`,
+      inline: false,
+    });
+  }
+
+  return {
+    embeds: [
+      {
+        title: `⚔️ Comparativa: ${w1.name} vs ${w2.name}`,
+        color: 0x00ff88,
+        fields,
+        footer: {
+          text: "Datos extraídos de wzstats.gg • Warzone Battle Royale",
+        },
+        timestamp: new Date().toISOString(),
+      },
+    ],
+  };
+}
