@@ -1,5 +1,5 @@
-// app/api/interactions/route.ts
 import { NextResponse } from "next/server";
+import { verifyKey } from "discord-interactions";
 import {
   fetchMetaRanking,
   findWeaponBuild,
@@ -11,81 +11,66 @@ import {
   formatComparisonResponse,
 } from "@/services/stats";
 
-// Tipo 1 de Discord: PING (Handshake de seguridad)
-// Tipo 2 de Discord: APPLICATION_COMMAND (Comando Slash)
 const InteractionType = {
   PING: 1,
   APPLICATION_COMMAND: 2,
 };
 
-// Tipo de respuesta para comandos
 const InteractionResponseType = {
   PONG: 1,
   CHANNEL_MESSAGE_WITH_SOURCE: 4,
 };
 
 export async function POST(req: Request) {
-  try {
-    const body = await req.json();
+  const signature = req.headers.get("x-signature-ed25519");
+  const timestamp = req.headers.get("x-signature-timestamp");
+  const rawBody = await req.text();
 
-    // 1. Handshake inicial que Discord pide para validar la URL
+  // 1. Verificación de seguridad de Discord
+  const isValidRequest =
+    signature &&
+    timestamp &&
+    process.env.DISCORD_PUBLIC_KEY &&
+    verifyKey(rawBody, signature, timestamp, process.env.DISCORD_PUBLIC_KEY);
+
+  if (!isValidRequest) {
+    return new NextResponse("Invalid request signature", { status: 401 });
+  }
+
+  try {
+    const body = JSON.parse(rawBody);
+
+    // 2. Handshake PING de Discord Developer Portal
     if (body.type === InteractionType.PING) {
       return NextResponse.json({ type: InteractionResponseType.PONG });
     }
 
-    // 2. Si es un comando slash
+    // 3. Comandos Slash
     if (body.type === InteractionType.APPLICATION_COMMAND) {
       const commandName = body.data.name;
 
-      if (commandName === "meta") {
-        // Obtenemos el parámetro que pasó el usuario (ej: "fg42", "cbrs 3")
-        const options = body.data.options || [];
-        const weaponOption =
-          options.find(
-            (opt: { name: string; value: string }) => opt.name === "weapon",
-          )?.value || "fg42";
-
-        // Ejecutamos el scraper que armamos en services/meta.ts
-        const build = await findWeaponBuild(weaponOption);
-
-        if (!build) {
-          return NextResponse.json({
-            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: {
-              content: `❌ No se encontró una clase meta para **${weaponOption}**. Verificá el nombre.`,
-              flags: 64, // 64 = Ephemeral (solo lo ve quien ejecutó el comando)
-            },
-          });
-        }
-
-        // Armamos el Embed visual con el código copiable
-        const embed = formatBuildEmbed(build);
-
+      // Comando: /ping
+      if (commandName === "ping") {
         return NextResponse.json({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
-            embeds: [embed],
+            content: "🏓 Pong! El bot está online y respondiendo.",
             flags: 64,
           },
         });
       }
-    }
 
-    if (body.type === InteractionType.APPLICATION_COMMAND) {
-      const commandName = body.data.name;
-
-      // 1. Comando: /ranking (Muestra el Top de armas)
+      // Comando: /ranking
       if (commandName === "ranking") {
-        const list = await fetchMetaRanking(); // Llama al scraper de la home
+        const list = await fetchMetaRanking();
         const embed = formatRankingEmbed(list);
-
         return NextResponse.json({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: { embeds: [embed], flags: 64 },
         });
       }
 
-      // 2. Comando: /meta [arma] (Muestra la clase y código del arma específica)
+      // Comando: /meta [weapon]
       if (commandName === "meta") {
         const options = body.data.options || [];
         const weaponOption =
@@ -98,8 +83,8 @@ export async function POST(req: Request) {
           return NextResponse.json({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: {
-              content: `❌ No se encontró una clase meta para **${weaponOption}**.`,
-              flags: 64, // Ephemeral
+              content: `❌ No se encontró una clase meta para **${weaponOption}**. Verificá el nombre.`,
+              flags: 64,
             },
           });
         }
@@ -111,9 +96,9 @@ export async function POST(req: Request) {
         });
       }
 
+      // Comando: /compare weapon1 weapon2 [table]
       if (commandName === "compare") {
         const options = body.data.options || [];
-        // Obtenemos los valores ingresados por el usuario
         const w1Input = options.find(
           (opt: { name: string; value: string }) => opt.name === "weapon1",
         )?.value as string;
@@ -127,11 +112,11 @@ export async function POST(req: Request) {
 
         if (!w1Input || !w2Input) {
           return NextResponse.json({
-            type: 4, // CHANNEL_MESSAGE_WITH_SOURCE
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: {
               content:
-                "⚠️ Debes especificar ambas armas para comparar. Ej: `/compare weapon1:an-94 weapon2:fg42`",
-              flags: 64, // Mensaje privado (ephemeral)
+                "⚠️ Debés especificar ambas armas para comparar. Ej: `/compare weapon1:an-94 weapon2:fg42`",
+              flags: 64,
             },
           });
         }
@@ -139,15 +124,12 @@ export async function POST(req: Request) {
         try {
           const statsMap = await fetchAllWeaponStats();
 
-          // Normalizamos para buscar coincidencias
           const cleanKey1 = w1Input.toLowerCase().replace(/[^a-z0-9]/g, "");
           const cleanKey2 = w2Input.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-          // Buscamos las armas en el Map
           let weapon1 = statsMap.get(cleanKey1);
           let weapon2 = statsMap.get(cleanKey2);
 
-          // Búsqueda flexible por si escribieron "an94" y en el map está "an-94"
           if (!weapon1) {
             for (const [key, val] of statsMap.entries()) {
               if (key.includes(cleanKey1) || cleanKey1.includes(key)) {
@@ -173,16 +155,16 @@ export async function POST(req: Request) {
                 : !weapon1
                   ? `"${w1Input}"`
                   : `"${w2Input}"`;
+
             return NextResponse.json({
-              type: 4,
+              type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
               data: {
-                content: `❌ No se encontraron estadísticas para ${missing}. Verificá los nombres e intentá de nuevo.`,
+                content: `❌ No se encontraron estadísticas para ${missing}. Verificá los nombres.`,
                 flags: 64,
               },
             });
           }
 
-          // Generamos el payload con los embeds
           const responsePayload = formatComparisonResponse(
             weapon1,
             weapon2,
@@ -190,16 +172,15 @@ export async function POST(req: Request) {
           );
 
           return NextResponse.json({
-            type: 4,
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: responsePayload,
           });
         } catch (error) {
           console.error("Error procesando /compare:", error);
           return NextResponse.json({
-            type: 4,
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: {
-              content:
-                "❌ Ocurrió un error al obtener la comparativa. Intenta de nuevo más tarde.",
+              content: "❌ Ocurrió un error al obtener la comparativa.",
               flags: 64,
             },
           });
@@ -212,7 +193,7 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   } catch (error) {
-    console.error("Error procesando interaction:", error);
+    console.error("Error general en interaction route:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 },
