@@ -41,7 +41,8 @@ function renderBar(
   maxScore = 10,
 ): { barA: string; barB: string } {
   if (valA === 0 && valB === 0)
-    return { barA: "░".repeat(maxScore), barB: "░".repeat(maxScore) };
+    // return { barA: "░".repeat(maxScore), barB: "░".repeat(maxScore) };
+    return { barA: "🟪".repeat(maxScore), barB: "⬛".repeat(maxScore) };
 
   const winA = lowerIsBetter ? valA < valB : valA > valB;
   const winB = lowerIsBetter ? valB < valA : valB > valA;
@@ -50,8 +51,10 @@ function renderBar(
   const ratioA = Math.max(1, Math.round((valA / maxVal) * maxScore));
   const ratioB = Math.max(1, Math.round((valB / maxVal) * maxScore));
 
-  const barA = `${"█".repeat(ratioA)}${"░".repeat(maxScore - ratioA)} ${winA ? "🏆" : ""}`;
-  const barB = `${"█".repeat(ratioB)}${"░".repeat(maxScore - ratioB)} ${winB ? "🏆" : ""}`;
+  // const barA = `${"█".repeat(ratioA)}${"░".repeat(maxScore - ratioA)} ${winA ? "🏆" : ""}`;
+  // const barB = `${"█".repeat(ratioB)}${"░".repeat(maxScore - ratioB)} ${winB ? "🏆" : ""}`;
+  const barA = `${"🟪".repeat(ratioA)}${"⬛".repeat(maxScore - ratioA)} ${winA ? "🏆" : ""}`;
+  const barB = `${"🟪".repeat(ratioB)}${"⬛".repeat(maxScore - ratioB)} ${winB ? "🏆" : ""}`;
 
   return { barA, barB };
 }
@@ -187,14 +190,14 @@ export function formatComparisonResponse(
   const adsBars = renderBar(w1.adsTime, w2.adsTime, true);
   const fireRateBars = renderBar(w1.fireRate, w2.fireRate, false);
 
-  let verdict = "";
-  if (w1.ttkShort < w2.ttkShort && w1.effectiveRange >= w2.effectiveRange) {
-    verdict = `**${w1.name}** es superior tanto en letalidad a corta distancia como en alcance efectivo.`;
-  } else if (w1.ttkShort < w2.ttkShort) {
-    verdict = `**${w1.name}** gana en combate cercano por mejor TTK (${w1.ttkShort}ms), mientras que **${w2.name}** destaca en control/alcance (${w2.effectiveRange}m).`;
-  } else {
-    verdict = `**${w2.name}** tiene una ventaja notable en TTK y tiempo de reacción general.`;
-  }
+  // let verdict = "";
+  // if (w1.ttkShort < w2.ttkShort && w1.effectiveRange >= w2.effectiveRange) {
+  //   verdict = `**${w1.name}** es superior tanto en letalidad a corta distancia como en alcance efectivo.`;
+  // } else if (w1.ttkShort < w2.ttkShort) {
+  //   verdict = `**${w1.name}** gana en combate cercano por mejor TTK (${w1.ttkShort}ms), mientras que **${w2.name}** destaca en control/alcance (${w2.effectiveRange}m).`;
+  // } else {
+  //   verdict = `**${w2.name}** tiene una ventaja notable en TTK y tiempo de reacción general.`;
+  // }
 
   const fields: Array<{ name: string; value: string; inline?: boolean }> = [
     {
@@ -217,11 +220,11 @@ export function formatComparisonResponse(
       value: `**${w1.name}**: \`${w1.fireRate || "N/D"} RPM\` ${fireRateBars.barA}\n**${w2.name}**: \`${w2.fireRate || "N/D"} RPM\` ${fireRateBars.barB}`,
       inline: false,
     },
-    {
-      name: "📋 Recomendación",
-      value: verdict,
-      inline: false,
-    },
+    // {
+    //   name: "📋 Recomendación",
+    //   value: verdict,
+    //   inline: false,
+    // },
   ];
 
   if (showTable) {
@@ -256,7 +259,7 @@ export function formatComparisonResponse(
     embeds: [
       {
         title: `⚔️ Comparativa: ${w1.name} vs ${w2.name}`,
-        color: 0x00ff88,
+        color: 0x9146ff,
         fields,
         footer: {
           text: "Datos extraídos de wzstats.gg • Warzone Battle Royale",

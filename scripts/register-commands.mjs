@@ -40,7 +40,7 @@ const commands = [
         required: true,
       },
       {
-        name: "table",
+        name: "tabla",
         description: "¿Mostrar cuadro detallado de daño por zonas del cuerpo?",
         type: 5, // BOOLEAN
         required: false,
