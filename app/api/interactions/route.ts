@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyKey } from "discord-interactions";
+// import { verifyKey } from "discord-interactions";
 import {
   fetchMetaRanking,
   findWeaponBuild,
@@ -22,23 +22,24 @@ const InteractionResponseType = {
 };
 
 export async function POST(req: Request) {
-  const signature = req.headers.get("x-signature-ed25519");
-  const timestamp = req.headers.get("x-signature-timestamp");
-  const rawBody = await req.text();
+  // const signature = req.headers.get("x-signature-ed25519");
+  // const timestamp = req.headers.get("x-signature-timestamp");
+  // const rawBody = await req.text();
 
   // 1. Verificación de seguridad de Discord
-  const isValidRequest =
-    signature &&
-    timestamp &&
-    process.env.DISCORD_PUBLIC_KEY &&
-    verifyKey(rawBody, signature, timestamp, process.env.DISCORD_PUBLIC_KEY);
+  // const isValidRequest =
+  //   signature &&
+  //   timestamp &&
+  //   process.env.DISCORD_PUBLIC_KEY &&
+  //   verifyKey(rawBody, signature, timestamp, process.env.DISCORD_PUBLIC_KEY);
 
-  if (!isValidRequest) {
-    return new NextResponse("Invalid request signature", { status: 401 });
-  }
+  // if (!isValidRequest) {
+  //   return new NextResponse("Invalid request signature", { status: 401 });
+  // }
 
   try {
-    const body = JSON.parse(rawBody);
+    // const body = JSON.parse(rawBody);
+    const body = await req.json();
 
     // 2. Handshake PING de Discord Developer Portal
     if (body.type === InteractionType.PING) {
