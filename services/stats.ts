@@ -21,6 +21,11 @@ export interface WeaponStats {
   };
 }
 
+// Variable en memoria RAM para evitar el límite de 2MB de Vercel
+let cachedStatsMap: Map<string, WeaponStats> | null = null;
+let lastFetchTime = 0;
+const CACHE_TTL = 1000 * 60 * 60 * 6; // 6 horas
+
 function normalizeName(str: string): string {
   return str
     .toLowerCase()
@@ -60,9 +65,15 @@ function renderBar(
 }
 
 export async function fetchAllWeaponStats(): Promise<Map<string, WeaponStats>> {
+  const now = Date.now();
+
+  // Si ya tenemos los datos en memoria y no pasaron 6 horas, los reutilizamos
+  if (cachedStatsMap && now - lastFetchTime < CACHE_TTL) {
+    return cachedStatsMap;
+  }
   const url = "https://wzstats.gg/es/warzone/battle-royale/stats";
   const res = await fetch(url, {
-    next: { revalidate: 3600 * 6 }, // Cache de 6 horas en Next.js
+    cache: "no-store",
     headers: {
       "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -176,6 +187,9 @@ export async function fetchAllWeaponStats(): Promise<Map<string, WeaponStats>> {
       }
     }
   });
+
+  cachedStatsMap = weaponsMap;
+  lastFetchTime = now;
 
   return weaponsMap;
 }
