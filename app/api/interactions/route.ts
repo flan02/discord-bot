@@ -13,6 +13,7 @@ import {
   getWeaponRealStats,
 } from "@/services/stats";
 import { findWeaponInMap } from "@/utils/helpers";
+import { BANNED_WEAPONS } from "@/types";
 
 const InteractionType = {
   PING: 1,
@@ -288,12 +289,21 @@ export async function POST(req: Request) {
       if (commandName === "weapons") {
         try {
           const statsMap = await fetchAllWeaponStats();
+          // Dividimos en bloques si supera el límite de caracteres de Discord
+          //TODO: Ban weapons that users can't compare (ram-7, striker)
+          const bannedWeapons = new Set(BANNED_WEAPONS);
+
           const weaponNames = Array.from(statsMap.values())
             .map((w) => w.name)
-            .filter((name) => !/\b(tier|warzone|meta|ranking)\b/i.test(name))
-            .map((name) => `• \`${name}\``); // 👈 Sin .sort()
+            .filter((name) => {
+              if (!name) return false;
+              if (/\b(tier|warzone|meta|ranking)\b/i.test(name)) return false;
 
-          // Dividimos en bloques si supera el límite de caracteres de Discord
+              const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+              return !bannedWeapons.has(cleanName); // 👈 Filtra las armas incompatibles
+            })
+            .map((name) => `• \`${name}\``); // 👈 Formato para Discord
+
           const listText = weaponNames.slice(0, 50).join("\n");
 
           return NextResponse.json({

@@ -424,7 +424,8 @@ export async function getWeaponRealStats(
     weapon.damagePerMag = Math.round((base.magSize || 30) * (chest[0] || 30));
     weapon.bulletVelocity = base.bulletVelocity || 0;
     weapon.effectiveRange = ranges[0]?.end || 0;
-    weapon.adsTime = base.adsTime || 300;
+    weapon.adsTime =
+      base.aimDownSightSpeed || base.adsSpeed || base.adsTime || 0;
     weapon.moveSpeed = base.movementSpeed || 0;
     weapon.hipfireSpread = base.hipfireMaxSpread || 0;
     weapon.hitboxes = {

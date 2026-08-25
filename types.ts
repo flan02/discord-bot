@@ -18,3 +18,5 @@ export interface WeaponBuild {
   image?: string;
   attachments: Attachment[];
 }
+
+export const BANNED_WEAPONS = ["ram-7", "striker"];
