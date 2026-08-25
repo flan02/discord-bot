@@ -10,6 +10,7 @@ import {
 import {
   fetchAllWeaponStats,
   formatComparisonResponse,
+  getWeaponRealStats,
 } from "@/services/stats";
 import { findWeaponInMap } from "@/utils/helpers";
 
@@ -236,29 +237,6 @@ export async function POST(req: Request) {
 
           const weapon1 = findWeaponInMap(w1Input, statsMap);
           const weapon2 = findWeaponInMap(w2Input, statsMap);
-          // const cleanKey1 = w1Input.toLowerCase().replace(/[^a-z0-9]/g, "");
-          // const cleanKey2 = w2Input.toLowerCase().replace(/[^a-z0-9]/g, "");
-
-          // let weapon1 = statsMap.get(cleanKey1);
-          // let weapon2 = statsMap.get(cleanKey2);
-
-          // if (!weapon1) {
-          //   for (const [key, val] of statsMap.entries()) {
-          //     if (key.includes(cleanKey1) || cleanKey1.includes(key)) {
-          //       weapon1 = val;
-          //       break;
-          //     }
-          //   }
-          // }
-
-          // if (!weapon2) {
-          //   for (const [key, val] of statsMap.entries()) {
-          //     if (key.includes(cleanKey2) || cleanKey2.includes(key)) {
-          //       weapon2 = val;
-          //       break;
-          //     }
-          //   }
-          // }
 
           if (!weapon1 || !weapon2) {
             const missing =
@@ -277,9 +255,14 @@ export async function POST(req: Request) {
             });
           }
 
+          const [fullW1, fullW2] = await Promise.all([
+            getWeaponRealStats(weapon1),
+            getWeaponRealStats(weapon2),
+          ]);
+
           const responsePayload = formatComparisonResponse(
-            weapon1,
-            weapon2,
+            fullW1,
+            fullW2,
             showTable,
           );
 
