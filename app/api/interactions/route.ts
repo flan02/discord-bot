@@ -63,15 +63,18 @@ export async function POST(req: Request) {
 
     if (body.type === InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE) {
       const options = body.data?.options || [];
-      // const focusedOption = options.find(
-      //   (opt: { focused?: boolean }) => opt.focused,
-      // );
       const focusedOption =
         options.find((opt: { focused?: boolean }) => opt.focused) || options[0];
       const query = (focusedOption?.value || "")
         .toString()
         .toLowerCase()
         .replace(/[^a-z0-9]/g, "");
+
+      const bannedWeapons = new Set(
+        BANNED_WEAPONS.map((name) =>
+          name.toLowerCase().replace(/[^a-z0-9]/g, ""),
+        ),
+      );
 
       let weaponNames: string[] = [];
 
@@ -93,11 +96,9 @@ export async function POST(req: Request) {
             "AK-27",
             "HRM-9",
             "Superi 46",
-            "RAM-7",
             "MCW",
             "SVA 545",
             "MTZ-556",
-            "Striker",
             "WSP-9",
             "Kar98k",
             "FJX Horus",
@@ -113,22 +114,21 @@ export async function POST(req: Request) {
           "AK-27",
           "HRM-9",
           "Superi 46",
-          "RAM-7",
           "MCW",
           "SVA 545",
           "MTZ-556",
         ];
       }
 
-      const filteredNames = weaponNames.filter(
-        (name) =>
-          name &&
-          !/\b(tier|warzone|meta|ranking)\b/i.test(name) &&
-          name
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, "")
-            .includes(query),
-      );
+      const filteredNames = weaponNames.filter((name) => {
+        if (!name) return false;
+        if (/\b(tier|warzone|meta|ranking)\b/i.test(name)) return false;
+
+        const clean = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (bannedWeapons.has(clean)) return false; // 👈 Excluye RAM-7, Striker, etc.
+
+        return clean.includes(query);
+      });
 
       // 2. Eliminamos duplicados tanto en nombre como en slug (requisito de Discord)
       const seenSlugs = new Set<string>();
