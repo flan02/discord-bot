@@ -60,9 +60,11 @@ export async function POST(req: Request) {
 
     if (body.type === InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE) {
       const options = body.data?.options || [];
-      const focusedOption = options.find(
-        (opt: { focused?: boolean }) => opt.focused,
-      );
+      // const focusedOption = options.find(
+      //   (opt: { focused?: boolean }) => opt.focused,
+      // );
+      const focusedOption =
+        options.find((opt: { focused?: boolean }) => opt.focused) || options[0];
       const query = (focusedOption?.value || "")
         .toString()
         .toLowerCase()
@@ -115,18 +117,44 @@ export async function POST(req: Request) {
         ];
       }
 
-      const choices = weaponNames
-        .filter((weaponName) =>
-          weaponName
+      const filteredNames = weaponNames.filter(
+        (name) =>
+          name &&
+          !/\b(tier|warzone|meta|ranking)\b/i.test(name) &&
+          name
             .toLowerCase()
             .replace(/[^a-z0-9]/g, "")
             .includes(query),
-        )
-        .slice(0, 50)
-        .map((weaponName) => ({
-          name: weaponName, // 👈 Lo que ve el usuario en el desplegable (ej: "AN-94")
-          value: weaponName.toLowerCase().replace(/[^a-z0-9]/g, ""), // 👈 El slug limpio que recibe el bot (ej: "an94")
-        }));
+      );
+
+      // 2. Eliminamos duplicados tanto en nombre como en slug (requisito de Discord)
+      const seenSlugs = new Set<string>();
+      const choices: Array<{ name: string; value: string }> = [];
+
+      for (const name of filteredNames) {
+        const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (!slug || seenSlugs.has(slug)) continue;
+
+        seenSlugs.add(slug);
+        choices.push({
+          name: name.slice(0, 100),
+          value: slug.slice(0, 100),
+        });
+
+        if (choices.length >= 25) break; // Discord rechaza más de 25 opciones
+      }
+      // const choices = weaponNames
+      //   .filter((weaponName) =>
+      //     weaponName
+      //       .toLowerCase()
+      //       .replace(/[^a-z0-9]/g, "")
+      //       .includes(query),
+      //   )
+      //   .slice(0, 50)
+      //   .map((weaponName) => ({
+      //     name: weaponName, // 👈 Lo que ve el usuario en el desplegable (ej: "AN-94")
+      //     value: weaponName.toLowerCase().replace(/[^a-z0-9]/g, ""), // 👈 El slug limpio que recibe el bot (ej: "an94")
+      //   }));
       // .map((name) => ({ name, value: name }));
 
       return NextResponse.json({
