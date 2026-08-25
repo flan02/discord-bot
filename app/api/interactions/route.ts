@@ -15,11 +15,13 @@ import {
 const InteractionType = {
   PING: 1,
   APPLICATION_COMMAND: 2,
+  APPLICATION_COMMAND_AUTOCOMPLETE: 4,
 };
 
 const InteractionResponseType = {
   PONG: 1,
   CHANNEL_MESSAGE_WITH_SOURCE: 4,
+  APPLICATION_COMMAND_AUTOCOMPLETE_RESULT: 8,
 };
 
 export const dynamic = "force-dynamic";
@@ -54,6 +56,79 @@ export async function POST(req: Request) {
     // 2. Handshake PING de Discord Developer Portal
     if (body.type === InteractionType.PING) {
       return NextResponse.json({ type: InteractionResponseType.PONG });
+    }
+
+    if (body.type === InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE) {
+      const options = body.data?.options || [];
+      const focusedOption = options.find(
+        (opt: { focused?: boolean }) => opt.focused,
+      );
+      const query = (focusedOption?.value || "")
+        .toString()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+
+      let weaponNames: string[] = [];
+
+      try {
+        // Intenta usar lo que ya está en RAM con un corte de seguridad a los 800ms
+        const statsMap = await Promise.race([
+          fetchAllWeaponStats(),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 800)),
+        ]);
+
+        if (statsMap && statsMap.size > 0) {
+          weaponNames = Array.from(statsMap.values()).map((w) => w.name);
+        } else {
+          weaponNames = [
+            "AN-94",
+            "FG42",
+            "MK35 ISR",
+            "DS20 MIRAGE",
+            "AK-27",
+            "HRM-9",
+            "Superi 46",
+            "RAM-7",
+            "MCW",
+            "SVA 545",
+            "MTZ-556",
+            "Striker",
+            "WSP-9",
+            "Kar98k",
+            "FJX Horus",
+            "Static-HV",
+          ];
+        }
+      } catch {
+        weaponNames = [
+          "AN-94",
+          "FG42",
+          "MK35 ISR",
+          "DS20 MIRAGE",
+          "AK-27",
+          "HRM-9",
+          "Superi 46",
+          "RAM-7",
+          "MCW",
+          "SVA 545",
+          "MTZ-556",
+        ];
+      }
+
+      const choices = weaponNames
+        .filter((name) =>
+          name
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "")
+            .includes(query),
+        )
+        .slice(0, 25)
+        .map((name) => ({ name, value: name }));
+
+      return NextResponse.json({
+        type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
+        data: { choices },
+      });
     }
 
     // 3. Comandos Slash
@@ -188,7 +263,10 @@ export async function POST(req: Request) {
 
           return NextResponse.json({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: responsePayload,
+            data: {
+              ...responsePayload,
+              flags: 64,
+            },
           });
         } catch (error) {
           console.error("Error procesando /compare:", error);

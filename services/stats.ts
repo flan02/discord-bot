@@ -74,132 +74,321 @@ function alignRow(
   return `\`${name.padEnd(nameWidth, " ")} ${formattedVal.padStart(valWidth, " ")}\``;
 }
 
+// export async function fetchAllWeaponStats(): Promise<Map<string, WeaponStats>> {
+//   const now = Date.now();
+
+//   if (cachedStatsMap && now - lastFetchTime < CACHE_TTL) {
+//     return cachedStatsMap;
+//   }
+//   const url = "https://wzstats.gg/es/warzone/battle-royale/stats";
+//   const res = await fetch(url, {
+//     cache: "no-store",
+//     headers: {
+//       "User-Agent":
+//         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+//       "Accept-Language": "es-ES,es;q=0.9",
+//     },
+//   });
+
+//   if (!res.ok) throw new Error("Error al obtener datos de stats de Warzone");
+
+//   const html = await res.text();
+//   const $ = cheerio.load(html);
+//   const weaponsMap = new Map<string, WeaponStats>();
+
+//   // 1. Extraer TTK Promedio
+//   $(".avg-row-head").each((_, el) => {
+//     const rawName = $(el)
+//       .text()
+//       .replace(/actualizado/gi, "")
+//       .trim();
+//     const key = normalizeName(rawName);
+//     if (!key) return;
+
+//     const row = $(el).parent();
+//     const cells = row
+//       .find(".avg-cell")
+//       .map((_, c) => parseNumber($(c).text()))
+//       .get();
+
+//     weaponsMap.set(key, {
+//       name: rawName,
+//       ttkShort: cells[0] || 600,
+//       ttkLong: cells[2] || cells[1] || 700,
+//       fireRate: 0,
+//       damagePerMag: 0,
+//       bulletVelocity: 0,
+//       effectiveRange: 0,
+//       recoil: 0,
+//       adsTime: 0,
+//       moveSpeed: 0,
+//       hipfireSpread: 0,
+//       hitboxes: {
+//         distanceRanges: ["0-54m", "54-72m", "72m+"],
+//         head: [0, 0, 0],
+//         neck: [0, 0, 0],
+//         chest: [0, 0, 0],
+//         extremities: [0, 0, 0],
+//       },
+//     });
+//   });
+
+//   // 2. Extraer Secciones Generales (.st-data-row)
+//   $(".st-data-row").each((_, row) => {
+//     const rawText = $(row).text();
+//     for (const [key, weapon] of weaponsMap.entries()) {
+//       if (
+//         rawText.toLowerCase().includes(key) ||
+//         rawText.includes(weapon.name)
+//       ) {
+//         const textValues = $(row)
+//           .children()
+//           .map((_, c) => $(c).text().trim())
+//           .get();
+//         const nums = textValues.map((t) => parseNumber(t)).filter((n) => n > 0);
+
+//         if (rawText.includes("rpm")) {
+//           weapon.fireRate = nums[0] || weapon.fireRate;
+//           weapon.damagePerMag = nums[1] || weapon.damagePerMag;
+//         } else if (rawText.includes("m/s") && !rawText.includes("°/s")) {
+//           weapon.bulletVelocity = nums[0] || weapon.bulletVelocity;
+//           weapon.effectiveRange = nums[2] || nums[1] || weapon.effectiveRange;
+//         } else if (rawText.includes("°/s")) {
+//           weapon.recoil = nums[1] || nums[0] || weapon.recoil;
+//         } else if (rawText.includes("ms") && !rawText.includes("rpm")) {
+//           weapon.adsTime = nums[0] || weapon.adsTime;
+//         } else if (rawText.includes("°") && !rawText.includes("°/s")) {
+//           weapon.hipfireSpread = nums[0] || weapon.hipfireSpread;
+//         }
+//       }
+//     }
+//   });
+
+//   // 3. Extraer Hitboxes / Daño por partes del cuerpo
+//   let currentDistances: string[] = ["0-54m", "54-72m", "72m+"];
+//   $(".dp-head").each((_, el) => {
+//     const dists = $(el)
+//       .find("div, span")
+//       .map((_, d) => $(d).text().trim())
+//       .get()
+//       .filter(Boolean);
+//     if (dists.length >= 2) currentDistances = dists;
+//   });
+
+//   $(".dp-row").each((_, row) => {
+//     const label = $(row).find(".dp-cell-loc").text().trim().toLowerCase();
+//     const vals = $(row)
+//       .find(".dp-cell-val")
+//       .map((_, c) => parseNumber($(c).text()))
+//       .get();
+
+//     for (const weapon of weaponsMap.values()) {
+//       weapon.hitboxes.distanceRanges = currentDistances;
+//       if (label.includes("cabeza")) weapon.hitboxes.head = vals;
+//       else if (label.includes("cuello")) weapon.hitboxes.neck = vals;
+//       else if (label.includes("pecho")) weapon.hitboxes.chest = vals;
+//       else if (
+//         label.includes("estómago") ||
+//         label.includes("brazos") ||
+//         label.includes("piernas")
+//       ) {
+//         weapon.hitboxes.extremities = vals;
+//       }
+//     }
+//   });
+
+//   cachedStatsMap = weaponsMap;
+//   lastFetchTime = now;
+
+//   return weaponsMap;
+// }
+
+// En src/services/stats.ts
+
 export async function fetchAllWeaponStats(): Promise<Map<string, WeaponStats>> {
   const now = Date.now();
-
   if (cachedStatsMap && now - lastFetchTime < CACHE_TTL) {
     return cachedStatsMap;
   }
-  const url = "https://wzstats.gg/es/warzone/battle-royale/stats";
-  const res = await fetch(url, {
-    cache: "no-store",
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      "Accept-Language": "es-ES,es;q=0.9",
-    },
-  });
 
-  if (!res.ok) throw new Error("Error al obtener datos de stats de Warzone");
+  // 1. Obtenemos la lista global de armas desde la página principal de armas/meta
+  const urlMeta = "https://wzstats.gg/es/warzone/battle-royale/meta";
+  const urlStats = "https://wzstats.gg/es/warzone/battle-royale/stats";
 
-  const html = await res.text();
-  const $ = cheerio.load(html);
+  const [resMeta, resStats] = await Promise.all([
+    fetch(urlMeta, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      cache: "no-store",
+    }),
+    fetch(urlStats, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      cache: "no-store",
+    }),
+  ]);
+
   const weaponsMap = new Map<string, WeaponStats>();
 
-  // 1. Extraer TTK Promedio
-  $(".avg-row-head").each((_, el) => {
-    const rawName = $(el)
-      .text()
-      .replace(/actualizado/gi, "")
-      .trim();
-    const key = normalizeName(rawName);
-    if (!key) return;
+  // 2. Extraer TODAS las armas existentes de la base de wzstats (del script __NEXT_DATA__ o links)
+  if (resMeta.ok) {
+    const htmlMeta = await resMeta.text();
+    const $meta = cheerio.load(htmlMeta);
 
-    const row = $(el).parent();
-    const cells = row
-      .find(".avg-cell")
-      .map((_, c) => parseNumber($(c).text()))
-      .get();
+    // Intentamos leer el payload JSON nativo si existe
+    const nextDataScript = $meta("#__NEXT_DATA__").html();
+    if (nextDataScript) {
+      try {
+        const nextData = JSON.parse(nextDataScript);
+        // Recorremos el árbol de datos para encontrar la lista global de armas
+        const pageProps = nextData.props?.pageProps;
+        const rawWeapons = pageProps?.weapons || pageProps?.ranking || [];
 
-    weaponsMap.set(key, {
-      name: rawName,
-      ttkShort: cells[0] || 600,
-      ttkLong: cells[2] || cells[1] || 700,
-      fireRate: 0,
-      damagePerMag: 0,
-      bulletVelocity: 0,
-      effectiveRange: 0,
-      recoil: 0,
-      adsTime: 0,
-      moveSpeed: 0,
-      hipfireSpread: 0,
-      hitboxes: {
-        distanceRanges: ["0-54m", "54-72m", "72m+"],
-        head: [0, 0, 0],
-        neck: [0, 0, 0],
-        chest: [0, 0, 0],
-        extremities: [0, 0, 0],
-      },
+        for (const w of rawWeapons) {
+          const rawName = w.name || w.weaponName;
+          if (rawName) {
+            const key = normalizeName(rawName);
+            weaponsMap.set(key, {
+              name: rawName,
+              ttkShort: w.ttk || 600,
+              ttkLong: 700,
+              fireRate: w.rpm || w.fireRate || 0,
+              damagePerMag: 0,
+              bulletVelocity: w.bulletVelocity || 0,
+              effectiveRange: w.effectiveRange || 0,
+              recoil: 0,
+              adsTime: w.adsTime || 0,
+              moveSpeed: 0,
+              hipfireSpread: 0,
+              hitboxes: {
+                distanceRanges: ["0-54m", "54-72m", "72m+"],
+                head: [0, 0, 0],
+                neck: [0, 0, 0],
+                chest: [0, 0, 0],
+                extremities: [0, 0, 0],
+              },
+            });
+          }
+        }
+      } catch (e) {
+        console.error("Error parsing __NEXT_DATA__:", e);
+      }
+    }
+
+    // Fallback: extraer nombres de enlaces a armas en la vista meta
+    if (weaponsMap.size === 0) {
+      $meta("a[href*='/weapon/'], a[href*='/armas/']").each((_, el) => {
+        const rawName = $meta(el)
+          .text()
+          .trim()
+          .replace(/actualizado/gi, "");
+        const key = normalizeName(rawName);
+        if (key && !weaponsMap.has(key)) {
+          weaponsMap.set(key, {
+            name: rawName,
+            ttkShort: 600,
+            ttkLong: 700,
+            fireRate: 0,
+            damagePerMag: 0,
+            bulletVelocity: 0,
+            effectiveRange: 0,
+            recoil: 0,
+            adsTime: 0,
+            moveSpeed: 0,
+            hipfireSpread: 0,
+            hitboxes: {
+              distanceRanges: ["0-54m", "54-72m", "72m+"],
+              head: [0, 0, 0],
+              neck: [0, 0, 0],
+              chest: [0, 0, 0],
+              extremities: [0, 0, 0],
+            },
+          });
+        }
+      });
+    }
+  }
+
+  // 3. Superponer las estadísticas detalladas de las tablas de /stats
+  if (resStats.ok) {
+    const htmlStats = await resStats.text();
+    const $stats = cheerio.load(htmlStats);
+
+    // Extraer TTK y fusionar con el mapa
+    $stats(".avg-row-head").each((_, el) => {
+      const rawName = $stats(el)
+        .text()
+        .replace(/actualizado/gi, "")
+        .trim();
+      const key = normalizeName(rawName);
+      if (!key) return;
+
+      const row = $stats(el).parent();
+      const cells = row
+        .find(".avg-cell")
+        .map((_, c) => parseNumber($stats(c).text()))
+        .get();
+
+      const existing = weaponsMap.get(key) || {
+        name: rawName,
+        ttkShort: 600,
+        ttkLong: 700,
+        fireRate: 0,
+        damagePerMag: 0,
+        bulletVelocity: 0,
+        effectiveRange: 0,
+        recoil: 0,
+        adsTime: 0,
+        moveSpeed: 0,
+        hipfireSpread: 0,
+        hitboxes: {
+          distanceRanges: ["0-54m", "54-72m", "72m+"],
+          head: [0, 0, 0],
+          neck: [0, 0, 0],
+          chest: [0, 0, 0],
+          extremities: [0, 0, 0],
+        },
+      };
+
+      existing.ttkShort = cells[0] || existing.ttkShort;
+      existing.ttkLong = cells[2] || cells[1] || existing.ttkLong;
+      weaponsMap.set(key, existing);
     });
-  });
 
-  // 2. Extraer Secciones Generales (.st-data-row)
-  $(".st-data-row").each((_, row) => {
-    const rawText = $(row).text();
-    for (const [key, weapon] of weaponsMap.entries()) {
-      if (
-        rawText.toLowerCase().includes(key) ||
-        rawText.includes(weapon.name)
-      ) {
-        const textValues = $(row)
-          .children()
-          .map((_, c) => $(c).text().trim())
-          .get();
-        const nums = textValues.map((t) => parseNumber(t)).filter((n) => n > 0);
+    // Extraer datos de filas generales (.st-data-row)
+    $stats(".st-data-row").each((_, row) => {
+      const rawText = $stats(row).text();
+      for (const [key, weapon] of weaponsMap.entries()) {
+        if (
+          rawText.toLowerCase().includes(key) ||
+          rawText.includes(weapon.name)
+        ) {
+          const textValues = $stats(row)
+            .children()
+            .map((_, c) => $stats(c).text().trim())
+            .get();
+          const nums = textValues
+            .map((t) => parseNumber(t))
+            .filter((n) => n > 0);
 
-        if (rawText.includes("rpm")) {
-          weapon.fireRate = nums[0] || weapon.fireRate;
-          weapon.damagePerMag = nums[1] || weapon.damagePerMag;
-        } else if (rawText.includes("m/s") && !rawText.includes("°/s")) {
-          weapon.bulletVelocity = nums[0] || weapon.bulletVelocity;
-          weapon.effectiveRange = nums[2] || nums[1] || weapon.effectiveRange;
-        } else if (rawText.includes("°/s")) {
-          weapon.recoil = nums[1] || nums[0] || weapon.recoil;
-        } else if (rawText.includes("ms") && !rawText.includes("rpm")) {
-          weapon.adsTime = nums[0] || weapon.adsTime;
-        } else if (rawText.includes("°") && !rawText.includes("°/s")) {
-          weapon.hipfireSpread = nums[0] || weapon.hipfireSpread;
+          if (rawText.includes("rpm")) {
+            weapon.fireRate = nums[0] || weapon.fireRate;
+            weapon.damagePerMag = nums[1] || weapon.damagePerMag;
+          } else if (rawText.includes("m/s") && !rawText.includes("°/s")) {
+            weapon.bulletVelocity = nums[0] || weapon.bulletVelocity;
+            weapon.effectiveRange = nums[2] || nums[1] || weapon.effectiveRange;
+          } else if (rawText.includes("°/s")) {
+            weapon.recoil = nums[1] || nums[0] || weapon.recoil;
+          } else if (rawText.includes("ms") && !rawText.includes("rpm")) {
+            weapon.adsTime = nums[0] || weapon.adsTime;
+          } else if (rawText.includes("°") && !rawText.includes("°/s")) {
+            weapon.hipfireSpread = nums[0] || weapon.hipfireSpread;
+          }
         }
       }
-    }
-  });
-
-  // 3. Extraer Hitboxes / Daño por partes del cuerpo
-  let currentDistances: string[] = ["0-54m", "54-72m", "72m+"];
-  $(".dp-head").each((_, el) => {
-    const dists = $(el)
-      .find("div, span")
-      .map((_, d) => $(d).text().trim())
-      .get()
-      .filter(Boolean);
-    if (dists.length >= 2) currentDistances = dists;
-  });
-
-  $(".dp-row").each((_, row) => {
-    const label = $(row).find(".dp-cell-loc").text().trim().toLowerCase();
-    const vals = $(row)
-      .find(".dp-cell-val")
-      .map((_, c) => parseNumber($(c).text()))
-      .get();
-
-    for (const weapon of weaponsMap.values()) {
-      weapon.hitboxes.distanceRanges = currentDistances;
-      if (label.includes("cabeza")) weapon.hitboxes.head = vals;
-      else if (label.includes("cuello")) weapon.hitboxes.neck = vals;
-      else if (label.includes("pecho")) weapon.hitboxes.chest = vals;
-      else if (
-        label.includes("estómago") ||
-        label.includes("brazos") ||
-        label.includes("piernas")
-      ) {
-        weapon.hitboxes.extremities = vals;
-      }
-    }
-  });
+    });
+  }
 
   cachedStatsMap = weaponsMap;
   lastFetchTime = now;
-
   return weaponsMap;
 }
 
