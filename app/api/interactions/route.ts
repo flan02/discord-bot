@@ -288,11 +288,12 @@ export async function POST(req: Request) {
         try {
           const statsMap = await fetchAllWeaponStats();
           const weaponNames = Array.from(statsMap.values())
-            .map((w) => `• \`${w.name}\``)
-            .sort();
+            .map((w) => w.name)
+            .filter((name) => !/\b(tier|warzone|meta|ranking)\b/i.test(name))
+            .map((name) => `• \`${name}\``); // 👈 Sin .sort()
 
           // Dividimos en bloques si supera el límite de caracteres de Discord
-          const listText = weaponNames.slice(0, 35).join("\n");
+          const listText = weaponNames.slice(0, 50).join("\n");
 
           return NextResponse.json({
             type: 4,
@@ -303,7 +304,8 @@ export async function POST(req: Request) {
                   description: `Usa estos nombres exactos en \`/compare\`:\n\n${listText}`,
                   color: 0x9146ff,
                   footer: {
-                    text: `Total de armas cargadas: ${statsMap.size}`,
+                    // text: `Total de armas cargadas: ${statsMap.size}`,
+                    text: `Mostrando las 50 más destacadas de ${weaponNames.length} armas cargadas`,
                   },
                 },
               ],
