@@ -13,7 +13,7 @@ import {
   getWeaponRealStats,
 } from "@/services/stats";
 import { findWeaponInMap } from "@/utils/helpers";
-import { BANNED_WEAPONS } from "@/types";
+import { BANNED_WEAPONS, FALLOUT_WEAPONS } from "@/types";
 
 const InteractionType = {
   PING: 1,
@@ -88,36 +88,10 @@ export async function POST(req: Request) {
         if (statsMap && statsMap.size > 0) {
           weaponNames = Array.from(statsMap.values()).map((w) => w.name);
         } else {
-          weaponNames = [
-            "AN-94",
-            "FG42",
-            "MK35 ISR",
-            "DS20 MIRAGE",
-            "AK-27",
-            "HRM-9",
-            "Superi 46",
-            "MCW",
-            "SVA 545",
-            "MTZ-556",
-            "WSP-9",
-            "Kar98k",
-            "FJX Horus",
-            "Static-HV",
-          ];
+          weaponNames = FALLOUT_WEAPONS;
         }
       } catch {
-        weaponNames = [
-          "AN-94",
-          "FG42",
-          "MK35 ISR",
-          "DS20 MIRAGE",
-          "AK-27",
-          "HRM-9",
-          "Superi 46",
-          "MCW",
-          "SVA 545",
-          "MTZ-556",
-        ];
+        weaponNames = FALLOUT_WEAPONS;
       }
 
       const filteredNames = weaponNames.filter((name) => {
@@ -291,18 +265,34 @@ export async function POST(req: Request) {
           const statsMap = await fetchAllWeaponStats();
           // Dividimos en bloques si supera el límite de caracteres de Discord
           //TODO: Ban weapons that users can't compare (ram-7, striker)
-          const bannedWeapons = new Set(BANNED_WEAPONS);
+          // const bannedWeapons = new Set(BANNED_WEAPONS);
+          const bannedWeapons = new Set(
+            BANNED_WEAPONS.map((name) =>
+              name.toLowerCase().replace(/[^a-z0-9]/g, ""),
+            ),
+          );
 
           const weaponNames = Array.from(statsMap.values())
-            .map((w) => w.name)
-            .filter((name) => {
-              if (!name) return false;
-              if (/\b(tier|warzone|meta|ranking)\b/i.test(name)) return false;
+            // .map((w) => w.name)
+            .filter((w) => {
+              if (!w || !w.name) return false;
+              if (/\b(tier|warzone|meta|ranking)\b/i.test(w.name)) return false;
 
-              const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+              const cleanName = w.name.toLowerCase().replace(/[^a-z0-9]/g, "");
               return !bannedWeapons.has(cleanName); // 👈 Filtra las armas incompatibles
             })
-            .map((name) => `• \`${name}\``); // 👈 Formato para Discord
+            .map((w) => {
+              const slug =
+                w.slug ||
+                w.name
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, "-")
+                  .replace(/^-+|-+$/g, "");
+
+              // Formato claro: Nombre visible + Slug entre backticks para copiar
+              return `• **${w.name}** ➔ \`${slug}\``;
+            });
+          // .map((name) => `• \`${name}\``); // 👈 Formato para Discord
 
           const listText = weaponNames.slice(0, 50).join("\n");
 
@@ -311,8 +301,12 @@ export async function POST(req: Request) {
             data: {
               embeds: [
                 {
-                  title: "🔫 Armas Disponibles para Comparar",
-                  description: `Usa estos nombres exactos en \`/compare\`:\n\n${listText}`,
+                  title: "🔫 Lista de armas disponibles",
+                  // description: `Usa estos nombres exactos en \`/compare\`:\n\n${listText}`,
+                  description:
+                    "Para comparar dos armas, podés usar el **Nombre** o su **Identificador / Slug**:\n" +
+                    "Ej: `/compare weapon1:an-94 weapon2:mk35-isr`\n\n" +
+                    listText,
                   color: 0x9146ff,
                   footer: {
                     // text: `Total de armas cargadas: ${statsMap.size}`,

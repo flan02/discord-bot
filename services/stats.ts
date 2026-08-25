@@ -351,6 +351,98 @@ export async function fetchAllWeaponStats(): Promise<Map<string, WeaponStats>> {
 }
 
 // Consulta el endpoint exacto para rellenar las métricas de un arma bajo demanda
+// export async function getWeaponRealStats(
+//   weapon: WeaponStats,
+// ): Promise<WeaponStats> {
+//   // Si ya tiene las hitboxes cargadas, no vuelve a consultar
+//   if (weapon.hitboxes.head.length > 0) return weapon;
+
+//   const url = `https://app.wzstats.gg/wz2/loadout-builder/context?weaponId=${weapon.slug}&tierlist=alMazrah&game=wz2&addAttachmentsLockedByDefault=true&language=es`;
+
+//   try {
+//     const res = await fetch(url, {
+//       headers: {
+//         "User-Agent":
+//           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+//         Accept: "application/json",
+//         Referer: "https://wzstats.gg/",
+//       },
+//     });
+
+//     if (!res.ok) return weapon;
+
+//     const json = await res.json();
+//     const base = json.data?.baseStats;
+//     if (!base) return weapon;
+
+//     const ranges = base.damageRanges || [];
+//     const distanceRanges: string[] = [];
+//     const head: number[] = [];
+//     const neck: number[] = [];
+//     const chest: number[] = [];
+//     const extremities: number[] = [];
+
+//     const headMod = base.headshotModifier || 1;
+//     const neckMod = base.neckModifier || 1;
+//     const chestMod = base.upperChestModifier || 1;
+//     const extMod = base.upperLegsModifier || base.lowerBodyModifier || 0.8;
+
+//     for (let i = 0; i < ranges.length; i++) {
+//       const r = ranges[i];
+//       const start = r.start || 0;
+//       const end = r.end || 0;
+//       const dmg = r.damage || 0;
+
+//       if (end === 0 || i === ranges.length - 1) {
+//         distanceRanges.push(`${start}m+`);
+//       } else {
+//         distanceRanges.push(`${start}-${end}m`);
+//       }
+
+//       head.push(Math.round(dmg * headMod));
+//       neck.push(Math.round(dmg * neckMod));
+//       chest.push(Math.round(dmg * chestMod));
+//       extremities.push(Math.round(dmg * extMod));
+//     }
+
+//     const rpm = base.fireRate || 600;
+//     const ttkShort =
+//       chest[0] > 0
+//         ? Math.round((Math.ceil(250 / chest[0]) - 1) * ((60 / rpm) * 1000))
+//         : 0;
+//     const ttkLong =
+//       chest[chest.length - 1] > 0
+//         ? Math.round(
+//             (Math.ceil(250 / chest[chest.length - 1]) - 1) *
+//               ((60 / rpm) * 1000),
+//           )
+//         : 0;
+
+//     weapon.ttkShort = ttkShort;
+//     weapon.ttkLong = ttkLong;
+//     weapon.fireRate = rpm;
+//     weapon.damagePerMag = Math.round((base.magSize || 30) * (chest[0] || 30));
+//     weapon.bulletVelocity = base.bulletVelocity || 0;
+//     weapon.effectiveRange = ranges[0]?.end || 0;
+//     weapon.adsTime =
+//       base.aimDownSightSpeed || base.adsSpeed || base.adsTime || 0;
+//     weapon.moveSpeed = base.movementSpeed || 0;
+//     weapon.hipfireSpread = base.hipfireMaxSpread || 0;
+//     weapon.hitboxes = {
+//       distanceRanges,
+//       head,
+//       neck,
+//       chest,
+//       extremities,
+//     };
+
+//     return weapon;
+//   } catch (err) {
+//     console.error(`Error al enriquecer stats para ${weapon.slug}:`, err);
+//     return weapon;
+//   }
+// }
+
 export async function getWeaponRealStats(
   weapon: WeaponStats,
 ): Promise<WeaponStats> {
@@ -375,34 +467,64 @@ export async function getWeaponRealStats(
     const base = json.data?.baseStats;
     if (!base) return weapon;
 
-    const ranges = base.damageRanges || [];
     const distanceRanges: string[] = [];
     const head: number[] = [];
     const neck: number[] = [];
     const chest: number[] = [];
     const extremities: number[] = [];
 
-    const headMod = base.headshotModifier || 1;
-    const neckMod = base.neckModifier || 1;
-    const chestMod = base.upperChestModifier || 1;
-    const extMod = base.upperLegsModifier || base.lowerBodyModifier || 0.8;
+    // 1. PRIORIDAD: Usar damageProfile (valores exactos calculados que muestra la web)
+    if (Array.isArray(base.damageProfile) && base.damageProfile.length > 0) {
+      for (let i = 0; i < base.damageProfile.length; i++) {
+        const p = base.damageProfile[i];
+        const start = Math.round(p.start ?? 0);
+        const end = typeof p.end === "number" ? Math.round(p.end) : -1;
 
-    for (let i = 0; i < ranges.length; i++) {
-      const r = ranges[i];
-      const start = r.start || 0;
-      const end = r.end || 0;
-      const dmg = r.damage || 0;
+        if (end === -1 || end === 0 || i === base.damageProfile.length - 1) {
+          distanceRanges.push(`${start}m+`);
+        } else {
+          distanceRanges.push(`${start}-${end}m`);
+        }
 
-      if (end === 0 || i === ranges.length - 1) {
-        distanceRanges.push(`${start}m+`);
-      } else {
-        distanceRanges.push(`${start}-${end}m`);
+        head.push(p.head ?? 0);
+        neck.push(p.neck ?? 0);
+        chest.push(p.upperChest ?? p.chest ?? 0);
+        extremities.push(p.lowerBody ?? p.upperLegs ?? p.lowerLegs ?? 0);
       }
 
-      head.push(Math.round(dmg * headMod));
-      neck.push(Math.round(dmg * neckMod));
-      chest.push(Math.round(dmg * chestMod));
-      extremities.push(Math.round(dmg * extMod));
+      if (
+        typeof base.damageProfile[0]?.end === "number" &&
+        base.damageProfile[0].end > 0
+      ) {
+        weapon.effectiveRange = Math.round(base.damageProfile[0].end);
+      }
+    } else {
+      // 2. FALLBACK: Cálculo manual si damageProfile no viene presente
+      const ranges = base.damageRanges || [];
+      const headMod = base.headshotModifier || 1;
+      const neckMod = base.neckModifier || 1;
+      const chestMod = base.upperChestModifier || 1;
+      const extMod = base.upperLegsModifier || base.lowerBodyModifier || 0.8;
+
+      for (let i = 0; i < ranges.length; i++) {
+        const r = ranges[i];
+        const start = r.start || 0;
+        const end = r.end || 0;
+        const dmg = r.damage || 0;
+
+        if (end === 0 || i === ranges.length - 1) {
+          distanceRanges.push(`${start}m+`);
+        } else {
+          distanceRanges.push(`${start}-${end}m`);
+        }
+
+        head.push(Math.round(dmg * headMod));
+        neck.push(Math.round(dmg * neckMod));
+        chest.push(Math.round(dmg * chestMod));
+        extremities.push(Math.round(dmg * extMod));
+      }
+
+      weapon.effectiveRange = ranges[0]?.end || 0;
     }
 
     const rpm = base.fireRate || 600;
@@ -423,7 +545,6 @@ export async function getWeaponRealStats(
     weapon.fireRate = rpm;
     weapon.damagePerMag = Math.round((base.magSize || 30) * (chest[0] || 30));
     weapon.bulletVelocity = base.bulletVelocity || 0;
-    weapon.effectiveRange = ranges[0]?.end || 0;
     weapon.adsTime =
       base.aimDownSightSpeed || base.adsSpeed || base.adsTime || 0;
     weapon.moveSpeed = base.movementSpeed || 0;
@@ -501,7 +622,7 @@ export function formatComparisonResponse(
     };
 
     fields.push({
-      name: "🎯 Perfil de Daño y Caída por Distancia",
+      name: "\n🎯 Perfil de Daño y Caída por Distancia",
       value: `${buildWeaponDamageBlock(w1)}\n${buildWeaponDamageBlock(w2)}`,
       inline: false,
     });
