@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 // import { verifyKey } from "discord-interactions";
+import nacl from "tweetnacl";
 import {
   fetchMetaRanking,
   findWeaponBuild,
@@ -21,12 +22,14 @@ const InteractionResponseType = {
   CHANNEL_MESSAGE_WITH_SOURCE: 4,
 };
 
-export async function POST(req: Request) {
-  // const signature = req.headers.get("x-signature-ed25519");
-  // const timestamp = req.headers.get("x-signature-timestamp");
-  // const rawBody = await req.text();
+export const dynamic = "force-dynamic";
 
-  // 1. Verificación de seguridad de Discord
+export async function POST(req: Request) {
+  const signature = req.headers.get("x-signature-ed25519");
+  const timestamp = req.headers.get("x-signature-timestamp");
+  const rawBody = await req.text();
+
+  //1. Verificación de seguridad de Discord
   // const isValidRequest =
   //   signature &&
   //   timestamp &&
@@ -37,9 +40,27 @@ export async function POST(req: Request) {
   //   return new NextResponse("Invalid request signature", { status: 401 });
   // }
 
+  const publicKey = process.env.DISCORD_PUBLIC_KEY;
+
+  if (!signature || !timestamp || !publicKey) {
+    return new NextResponse("Missing signature or public key", {
+      status: 401,
+    });
+  }
+
+  const isVerified = nacl.sign.detached.verify(
+    Buffer.from(timestamp + rawBody),
+    Buffer.from(signature, "hex"),
+    Buffer.from(publicKey, "hex"),
+  );
+
+  if (!isVerified) {
+    return new NextResponse("Invalid request signature", { status: 401 });
+  }
+
   try {
-    // const body = JSON.parse(rawBody);
-    const body = await req.json();
+    const body = JSON.parse(rawBody);
+    // const body = await req.json();
 
     // 2. Handshake PING de Discord Developer Portal
     if (body.type === InteractionType.PING) {
