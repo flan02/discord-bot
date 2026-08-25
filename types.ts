@@ -19,7 +19,15 @@ export interface WeaponBuild {
   attachments: Attachment[];
 }
 
-export const BANNED_WEAPONS = ["ram-7", "striker"];
+export const BANNED_WEAPONS = [
+  "RAM-7",
+  "STRIKER",
+  "SWAT 5.56",
+  "KAR98K",
+  "LW3A1 FROSTLINE",
+  "LR 7.62",
+  "FJX IMPERIUM",
+];
 
 export const FALLOUT_WEAPONS = [
   "AN-94",
