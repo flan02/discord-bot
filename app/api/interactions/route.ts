@@ -116,14 +116,18 @@ export async function POST(req: Request) {
       }
 
       const choices = weaponNames
-        .filter((name) =>
-          name
+        .filter((weaponName) =>
+          weaponName
             .toLowerCase()
             .replace(/[^a-z0-9]/g, "")
             .includes(query),
         )
-        .slice(0, 25)
-        .map((name) => ({ name, value: name }));
+        .slice(0, 50)
+        .map((weaponName) => ({
+          name: weaponName, // 👈 Lo que ve el usuario en el desplegable (ej: "AN-94")
+          value: weaponName.toLowerCase().replace(/[^a-z0-9]/g, ""), // 👈 El slug limpio que recibe el bot (ej: "an94")
+        }));
+      // .map((name) => ({ name, value: name }));
 
       return NextResponse.json({
         type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
