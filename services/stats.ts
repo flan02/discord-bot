@@ -324,12 +324,90 @@ export async function fetchAllWeaponStats(): Promise<Map<string, WeaponStats>> {
   return weaponsMap;
 }
 
+// export function formatComparisonResponse(
+//   w1: WeaponStats,
+//   w2: WeaponStats,
+//   showTable = false,
+// ) {
+//   // Ancho dinámico para nombres largos (ej: "Lachmann Sub")
+//   const nameWidth = Math.max(w1.name.length, w2.name.length, 6);
+
+//   const ttkShortBars = renderBar(w1.ttkShort, w2.ttkShort, true);
+//   const rangeBars = renderBar(w1.effectiveRange, w2.effectiveRange, false);
+//   const adsBars = renderBar(w1.adsTime, w2.adsTime, true);
+//   const fireRateBars = renderBar(w1.fireRate, w2.fireRate, false);
+
+//   const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+//     {
+//       name: "⚡ Letalidad (TTK Corto Alcance)",
+//       value: `${alignRow(w1.name, w1.ttkShort || "N/D", "ms", nameWidth, 7)} ${ttkShortBars.barA}\n${alignRow(w2.name, w2.ttkShort || "N/D", "ms", nameWidth, 7)} ${ttkShortBars.barB}`,
+//       inline: false,
+//     },
+//     {
+//       name: "📏 Rango Efectivo",
+//       value: `${alignRow(w1.name, w1.effectiveRange || "N/D", "m", nameWidth, 6)} ${rangeBars.barA}\n${alignRow(w2.name, w2.effectiveRange || "N/D", "m", nameWidth, 6)} ${rangeBars.barB}`,
+//       inline: false,
+//     },
+//     {
+//       name: "🏃 Agilidad (Tiempo de Apuntado ADS)",
+//       value: `${alignRow(w1.name, w1.adsTime || "N/D", "ms", nameWidth, 7)} ${adsBars.barA}\n${alignRow(w2.name, w2.adsTime || "N/D", "ms", nameWidth, 7)} ${adsBars.barB}`,
+//       inline: false,
+//     },
+//     {
+//       name: "🔥 Cadencia de Fuego",
+//       value: `${alignRow(w1.name, w1.fireRate || "N/D", "RPM", nameWidth, 8)} ${fireRateBars.barA}\n${alignRow(w2.name, w2.fireRate || "N/D", "RPM", nameWidth, 8)} ${fireRateBars.barB}`,
+//       inline: false,
+//     },
+//   ];
+
+//   if (showTable) {
+//     const r = w1.hitboxes.distanceRanges[0] || "0-50m";
+//     const headBars = renderBar(
+//       w1.hitboxes.head[0] || 0,
+//       w2.hitboxes.head[0] || 0,
+//       false,
+//     );
+//     const chestBars = renderBar(
+//       w1.hitboxes.chest[0] || 0,
+//       w2.hitboxes.chest[0] || 0,
+//       false,
+//     );
+//     const extBars = renderBar(
+//       w1.hitboxes.extremities[0] || 0,
+//       w2.hitboxes.extremities[0] || 0,
+//       false,
+//     );
+
+//     fields.push({
+//       name: `‎\n🎯 Daño por Impacto (${r})`,
+//       value:
+//         `**Cabeza:**\n🟢 ${alignRow(w1.name, w1.hitboxes.head[0] || "N/D", "", nameWidth, 3)} ${headBars.barA}\n🔴 ${alignRow(w2.name, w2.hitboxes.head[0] || "N/D", "", nameWidth, 3)} ${headBars.barB}\n\n` +
+//         `**Pecho / Torso:**\n🟢 ${alignRow(w1.name, w1.hitboxes.chest[0] || "N/D", "", nameWidth, 3)} ${chestBars.barA}\n🔴 ${alignRow(w2.name, w2.hitboxes.chest[0] || "N/D", "", nameWidth, 3)} ${chestBars.barB}\n\n` +
+//         `**Extremidades:**\n🟢 ${alignRow(w1.name, w1.hitboxes.extremities[0] || "N/D", "", nameWidth, 3)} ${extBars.barA}\n🔴 ${alignRow(w2.name, w2.hitboxes.extremities[0] || "N/D", "", nameWidth, 3)} ${extBars.barB}`,
+//       inline: false,
+//     });
+//   }
+
+//   return {
+//     embeds: [
+//       {
+//         title: `⚔️ Comparativa: ${w1.name} vs ${w2.name}`,
+//         color: 0x9146ff,
+//         fields,
+//         footer: {
+//           text: "Datos extraídos de wzstats.gg • Warzone Battle Royale",
+//         },
+//         timestamp: new Date().toISOString(),
+//       },
+//     ],
+//   };
+// }
+
 export function formatComparisonResponse(
   w1: WeaponStats,
   w2: WeaponStats,
   showTable = false,
 ) {
-  // Ancho dinámico para nombres largos (ej: "Lachmann Sub")
   const nameWidth = Math.max(w1.name.length, w2.name.length, 6);
 
   const ttkShortBars = renderBar(w1.ttkShort, w2.ttkShort, true);
@@ -340,50 +418,51 @@ export function formatComparisonResponse(
   const fields: Array<{ name: string; value: string; inline?: boolean }> = [
     {
       name: "⚡ Letalidad (TTK Corto Alcance)",
-      value: `${alignRow(w1.name, w1.ttkShort || "N/D", "ms", nameWidth, 7)} ${ttkShortBars.barA}\n${alignRow(w2.name, w2.ttkShort || "N/D", "ms", nameWidth, 7)} ${ttkShortBars.barB}`,
+      value: `${alignRow(w1.name, w1.ttkShort || "N/D", w1.ttkShort ? "ms" : "", nameWidth, 7)} ${ttkShortBars.barA}\n${alignRow(w2.name, w2.ttkShort || "N/D", w2.ttkShort ? "ms" : "", nameWidth, 7)} ${ttkShortBars.barB}`,
       inline: false,
     },
     {
       name: "📏 Rango Efectivo",
-      value: `${alignRow(w1.name, w1.effectiveRange || "N/D", "m", nameWidth, 6)} ${rangeBars.barA}\n${alignRow(w2.name, w2.effectiveRange || "N/D", "m", nameWidth, 6)} ${rangeBars.barB}`,
+      value: `${alignRow(w1.name, w1.effectiveRange || "N/D", w1.effectiveRange ? "m" : "", nameWidth, 6)} ${rangeBars.barA}\n${alignRow(w2.name, w2.effectiveRange || "N/D", w2.effectiveRange ? "m" : "", nameWidth, 6)} ${rangeBars.barB}`,
       inline: false,
     },
     {
       name: "🏃 Agilidad (Tiempo de Apuntado ADS)",
-      value: `${alignRow(w1.name, w1.adsTime || "N/D", "ms", nameWidth, 7)} ${adsBars.barA}\n${alignRow(w2.name, w2.adsTime || "N/D", "ms", nameWidth, 7)} ${adsBars.barB}`,
+      value: `${alignRow(w1.name, w1.adsTime || "N/D", w1.adsTime ? "ms" : "", nameWidth, 7)} ${adsBars.barA}\n${alignRow(w2.name, w2.adsTime || "N/D", w2.adsTime ? "ms" : "", nameWidth, 7)} ${adsBars.barB}`,
       inline: false,
     },
     {
       name: "🔥 Cadencia de Fuego",
-      value: `${alignRow(w1.name, w1.fireRate || "N/D", "RPM", nameWidth, 8)} ${fireRateBars.barA}\n${alignRow(w2.name, w2.fireRate || "N/D", "RPM", nameWidth, 8)} ${fireRateBars.barB}`,
+      value: `${alignRow(w1.name, w1.fireRate || "N/D", w1.fireRate ? "RPM" : "", nameWidth, 8)} ${fireRateBars.barA}\n${alignRow(w2.name, w2.fireRate || "N/D", w2.fireRate ? "RPM" : "", nameWidth, 8)} ${fireRateBars.barB}`,
       inline: false,
     },
   ];
 
   if (showTable) {
-    const r = w1.hitboxes.distanceRanges[0] || "0-50m";
-    const headBars = renderBar(
-      w1.hitboxes.head[0] || 0,
-      w2.hitboxes.head[0] || 0,
-      false,
-    );
-    const chestBars = renderBar(
-      w1.hitboxes.chest[0] || 0,
-      w2.hitboxes.chest[0] || 0,
-      false,
-    );
-    const extBars = renderBar(
-      w1.hitboxes.extremities[0] || 0,
-      w2.hitboxes.extremities[0] || 0,
-      false,
-    );
+    const buildWeaponDamageBlock = (w: WeaponStats) => {
+      const ranges = w.hitboxes?.distanceRanges?.length
+        ? w.hitboxes.distanceRanges
+        : ["Corta", "Media", "Larga"];
+
+      const r1 = (ranges[0] || "0-20m").padEnd(10, " ");
+      const r2 = (ranges[1] || "20-40m").padEnd(10, " ");
+      const r3 = (ranges[2] || "40m+").padEnd(8, " ");
+
+      const getVal = (arr: number[] = [], idx: number) =>
+        arr[idx] ? String(arr[idx]).padEnd(10, " ") : "-".padEnd(10, " ");
+
+      const header =
+        `Zona           | ${r1} | ${r2} | ${r3}\n` + "─".repeat(48);
+      const rowHead = `Cabeza         | ${getVal(w.hitboxes?.head, 0)} | ${getVal(w.hitboxes?.head, 1)} | ${getVal(w.hitboxes?.head, 2).trim()}`;
+      const rowChest = `Pecho / Torso  | ${getVal(w.hitboxes?.chest, 0)} | ${getVal(w.hitboxes?.chest, 1)} | ${getVal(w.hitboxes?.chest, 2).trim()}`;
+      const rowExt = `Extremidades   | ${getVal(w.hitboxes?.extremities, 0)} | ${getVal(w.hitboxes?.extremities, 1)} | ${getVal(w.hitboxes?.extremities, 2).trim()}`;
+
+      return `**${w.name}**\n\`\`\`text\n${header}\n${rowHead}\n${rowChest}\n${rowExt}\n\`\`\``;
+    };
 
     fields.push({
-      name: `‎\n🎯 Daño por Impacto (${r})`,
-      value:
-        `**Cabeza:**\n🟢 ${alignRow(w1.name, w1.hitboxes.head[0] || "N/D", "", nameWidth, 3)} ${headBars.barA}\n🔴 ${alignRow(w2.name, w2.hitboxes.head[0] || "N/D", "", nameWidth, 3)} ${headBars.barB}\n\n` +
-        `**Pecho / Torso:**\n🟢 ${alignRow(w1.name, w1.hitboxes.chest[0] || "N/D", "", nameWidth, 3)} ${chestBars.barA}\n🔴 ${alignRow(w2.name, w2.hitboxes.chest[0] || "N/D", "", nameWidth, 3)} ${chestBars.barB}\n\n` +
-        `**Extremidades:**\n🟢 ${alignRow(w1.name, w1.hitboxes.extremities[0] || "N/D", "", nameWidth, 3)} ${extBars.barA}\n🔴 ${alignRow(w2.name, w2.hitboxes.extremities[0] || "N/D", "", nameWidth, 3)} ${extBars.barB}`,
+      name: "🎯 Perfil de Daño y Caída por Distancia",
+      value: `${buildWeaponDamageBlock(w1)}\n${buildWeaponDamageBlock(w2)}`,
       inline: false,
     });
   }

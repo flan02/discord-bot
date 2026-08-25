@@ -24,9 +24,11 @@ async function scanDetailedStats() {
         if (
           text.length > 3 &&
           text.length < 50 &&
-          (text.includes("AN-94") ||
+          // (text.includes("AN-94") ||
+          (text.includes("rev-46") ||
             text.includes("MK35") ||
-            text.includes("FG42"))
+            text.includes("AK-27"))
+          // text.includes("FG42"))
         ) {
           console.log(`[${el.tagName}.${cls}]: "${text}"`);
         }
