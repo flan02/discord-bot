@@ -524,37 +524,23 @@ export async function POST(req: Request) {
       // }
       if (commandName === "weapons") {
         try {
-          const statsMap = await fetchAllWeaponStats();
+          // Generación instantánea en memoria (0ms de latencia)
+          const weaponEntries = ALLOWED_WEAPONS.map((name) => {
+            const slug = name
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/^-+|-+$/g, "");
 
-          const weaponEntries = Array.from(statsMap.values())
-            .filter((w) => {
-              if (!w || !w.name) return false;
-              if (/\b(tier|warzone|meta|ranking)\b/i.test(w.name)) return false;
-
-              const cleanKey = (w.slug || w.name)
-                .toLowerCase()
-                .replace(/[^a-z0-9]/g, "");
-
-              return ALLOWED_WEAPONS_SET.has(cleanKey);
-            })
-            .map((w) => {
-              const slug =
-                w.slug ||
-                w.name
-                  .toLowerCase()
-                  .replace(/[^a-z0-9]+/g, "-")
-                  .replace(/^-+|-+$/g, "");
-
-              return `• **${w.name}** ➔ \`${slug}\``;
-            });
+            return `• **${name}** ➔ \`${slug}\``;
+          });
 
           const totalCount = weaponEntries.length;
           const pageSize = 30;
-          const totalPages = Math.ceil(totalCount / pageSize);
+          const totalPages = Math.ceil(totalCount / pageSize) || 1;
           const page1 = weaponEntries.slice(0, pageSize).join("\n");
 
           return NextResponse.json({
-            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            type: 4, // InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE
             data: {
               embeds: [
                 {
@@ -571,18 +557,18 @@ export async function POST(req: Request) {
               ],
               components: [
                 {
-                  type: InteractionType.MESSAGE_COMPONENT, // Action Row
+                  type: 1, // Action Row
                   components: [
                     {
                       type: 2, // Button
-                      style: 2, // Secondary (Gris)
+                      style: 2, // Secondary
                       label: "◀️ Anterior",
                       custom_id: "weapons_page_1",
                       disabled: true,
                     },
                     {
                       type: 2,
-                      style: 1, // Primary (Azul/Blurple)
+                      style: 1, // Primary
                       label: "Siguiente ▶️",
                       custom_id: "weapons_page_2",
                       disabled: totalPages <= 1,
@@ -590,7 +576,7 @@ export async function POST(req: Request) {
                   ],
                 },
               ],
-              flags: 64, // Ephemeral (solo visible para el usuario)
+              flags: 64, // Ephemeral
             },
           });
         } catch (error) {
