@@ -233,63 +233,22 @@ export async function POST(req: Request) {
       if (customId.startsWith("weapons_page_")) {
         const page = parseInt(customId.replace("weapons_page_", ""), 10) || 1;
 
-        let weaponEntries: Array<{ name: string; slug: string }> = [];
+        const weaponEntries = ALLOWED_WEAPONS.map((name) => {
+          const slug = name
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "");
 
-        try {
-          const statsMap = await Promise.race([
-            fetchAllWeaponStats(),
-            new Promise<null>((resolve) =>
-              setTimeout(() => resolve(null), 800),
-            ),
-          ]);
+          return `• **${name}** ➔ \`${slug}\``;
+        });
 
-          if (statsMap && statsMap.size > 0) {
-            weaponEntries = Array.from(statsMap.values()).map((w) => ({
-              name: w.name,
-              slug:
-                w.slug ||
-                w.name
-                  .toLowerCase()
-                  .replace(/[^a-z0-9]+/g, "-")
-                  .replace(/^-+|-+$/g, ""),
-            }));
-          } else {
-            weaponEntries = ALLOWED_WEAPONS.map((name) => ({
-              name,
-              slug: name
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, "-")
-                .replace(/^-+|-+$/g, ""),
-            }));
-          }
-        } catch {
-          weaponEntries = ALLOWED_WEAPONS.map((name) => ({
-            name,
-            slug: name
-              .toLowerCase()
-              .replace(/[^a-z0-9]+/g, "-")
-              .replace(/^-+|-+$/g, ""),
-          }));
-        }
-
-        const validLines = weaponEntries
-          .filter((w) => {
-            if (!w || !w.name) return false;
-            if (/\b(tier|warzone|meta|ranking)\b/i.test(w.name)) return false;
-
-            const cleanKey = (w.slug || w.name)
-              .toLowerCase()
-              .replace(/[^a-z0-9]/g, "");
-
-            return ALLOWED_WEAPONS_SET.has(cleanKey);
-          })
-          .map((w) => `• **${w.name}** ➔ \`${w.slug}\``);
-
-        const totalCount = validLines.length;
+        const totalCount = weaponEntries.length;
         const pageSize = 30;
         const totalPages = Math.ceil(totalCount / pageSize) || 1;
         const start = (page - 1) * pageSize;
-        const pageItems = validLines.slice(start, start + pageSize).join("\n");
+        const pageItems = weaponEntries
+          .slice(start, start + pageSize)
+          .join("\n");
 
         return NextResponse.json({
           type: InteractionResponseType.UPDATE_MESSAGE,
