@@ -45,9 +45,9 @@ function renderBar(
   lowerIsBetter = false,
   maxScore = 10,
 ): { barA: string; barB: string } {
-  if (valA === 0 && valB === 0)
-    // return { barA: "░".repeat(maxScore), barB: "░".repeat(maxScore) };
+  if (valA === 0 && valB === 0) {
     return { barA: "🟪".repeat(maxScore), barB: "⬛".repeat(maxScore) };
+  }
 
   const winA = lowerIsBetter ? valA < valB : valA > valB;
   const winB = lowerIsBetter ? valB < valA : valB > valA;
@@ -56,18 +56,27 @@ function renderBar(
   const ratioA = Math.max(1, Math.round((valA / maxVal) * maxScore));
   const ratioB = Math.max(1, Math.round((valB / maxVal) * maxScore));
 
-  // const barA = `${"█".repeat(ratioA)}${"░".repeat(maxScore - ratioA)} ${winA ? "🏆" : ""}`;
-  // const barB = `${"█".repeat(ratioB)}${"░".repeat(maxScore - ratioB)} ${winB ? "🏆" : ""}`;
-  const barA = `${"🟪".repeat(ratioA)}${"⬛".repeat(maxScore - ratioA)} ${winA ? "🏆" : ""}`;
-  const barB = `${"🟪".repeat(ratioB)}${"⬛".repeat(maxScore - ratioB)} ${winB ? "🏆" : ""}`;
+  const barA = `${"🟪".repeat(ratioA)}${"⬛".repeat(maxScore - ratioA)}${winA ? " 🏆" : ""}`;
+  const barB = `${"🟪".repeat(ratioB)}${"⬛".repeat(maxScore - ratioB)}${winB ? " 🏆" : ""}`;
 
   return { barA, barB };
+}
+
+// Formateador alineado con ancho fijo dentro de backticks
+function alignRow(
+  name: string,
+  value: string | number,
+  unit = "",
+  nameWidth = 8,
+  valWidth = 7,
+): string {
+  const formattedVal = `${value}${unit ? " " + unit : ""}`;
+  return `\`${name.padEnd(nameWidth, " ")} ${formattedVal.padStart(valWidth, " ")}\``;
 }
 
 export async function fetchAllWeaponStats(): Promise<Map<string, WeaponStats>> {
   const now = Date.now();
 
-  // Si ya tenemos los datos en memoria y no pasaron 6 horas, los reutilizamos
   if (cachedStatsMap && now - lastFetchTime < CACHE_TTL) {
     return cachedStatsMap;
   }
@@ -199,46 +208,35 @@ export function formatComparisonResponse(
   w2: WeaponStats,
   showTable = false,
 ) {
+  // Ancho dinámico para nombres largos (ej: "Lachmann Sub")
+  const nameWidth = Math.max(w1.name.length, w2.name.length, 6);
+
   const ttkShortBars = renderBar(w1.ttkShort, w2.ttkShort, true);
   const rangeBars = renderBar(w1.effectiveRange, w2.effectiveRange, false);
   const adsBars = renderBar(w1.adsTime, w2.adsTime, true);
   const fireRateBars = renderBar(w1.fireRate, w2.fireRate, false);
 
-  // let verdict = "";
-  // if (w1.ttkShort < w2.ttkShort && w1.effectiveRange >= w2.effectiveRange) {
-  //   verdict = `**${w1.name}** es superior tanto en letalidad a corta distancia como en alcance efectivo.`;
-  // } else if (w1.ttkShort < w2.ttkShort) {
-  //   verdict = `**${w1.name}** gana en combate cercano por mejor TTK (${w1.ttkShort}ms), mientras que **${w2.name}** destaca en control/alcance (${w2.effectiveRange}m).`;
-  // } else {
-  //   verdict = `**${w2.name}** tiene una ventaja notable en TTK y tiempo de reacción general.`;
-  // }
-
   const fields: Array<{ name: string; value: string; inline?: boolean }> = [
     {
       name: "⚡ Letalidad (TTK Corto Alcance)",
-      value: `**${w1.name}**: \`${w1.ttkShort || "N/D"} ms\` ${ttkShortBars.barA}\n**${w2.name}**: \`${w2.ttkShort || "N/D"} ms\` ${ttkShortBars.barB}`,
+      value: `${alignRow(w1.name, w1.ttkShort || "N/D", "ms", nameWidth, 7)} ${ttkShortBars.barA}\n${alignRow(w2.name, w2.ttkShort || "N/D", "ms", nameWidth, 7)} ${ttkShortBars.barB}`,
       inline: false,
     },
     {
       name: "📏 Rango Efectivo",
-      value: `**${w1.name}**: \`${w1.effectiveRange || "N/D"} m\` ${rangeBars.barA}\n**${w2.name}**: \`${w2.effectiveRange || "N/D"} m\` ${rangeBars.barB}`,
+      value: `${alignRow(w1.name, w1.effectiveRange || "N/D", "m", nameWidth, 6)} ${rangeBars.barA}\n${alignRow(w2.name, w2.effectiveRange || "N/D", "m", nameWidth, 6)} ${rangeBars.barB}`,
       inline: false,
     },
     {
       name: "🏃 Agilidad (Tiempo de Apuntado ADS)",
-      value: `**${w1.name}**: \`${w1.adsTime || "N/D"} ms\` ${adsBars.barA}\n**${w2.name}**: \`${w2.adsTime || "N/D"} ms\` ${adsBars.barB}`,
+      value: `${alignRow(w1.name, w1.adsTime || "N/D", "ms", nameWidth, 7)} ${adsBars.barA}\n${alignRow(w2.name, w2.adsTime || "N/D", "ms", nameWidth, 7)} ${adsBars.barB}`,
       inline: false,
     },
     {
       name: "🔥 Cadencia de Fuego",
-      value: `**${w1.name}**: \`${w1.fireRate || "N/D"} RPM\` ${fireRateBars.barA}\n**${w2.name}**: \`${w2.fireRate || "N/D"} RPM\` ${fireRateBars.barB}`,
+      value: `${alignRow(w1.name, w1.fireRate || "N/D", "RPM", nameWidth, 8)} ${fireRateBars.barA}\n${alignRow(w2.name, w2.fireRate || "N/D", "RPM", nameWidth, 8)} ${fireRateBars.barB}`,
       inline: false,
     },
-    // {
-    //   name: "📋 Recomendación",
-    //   value: verdict,
-    //   inline: false,
-    // },
   ];
 
   if (showTable) {
@@ -260,11 +258,11 @@ export function formatComparisonResponse(
     );
 
     fields.push({
-      name: `🎯 Daño por Impacto (${r})`,
+      name: `‎\n🎯 Daño por Impacto (${r})`,
       value:
-        `**Cabeza:**\n🟢 ${w1.name}: \`${w1.hitboxes.head[0] || "N/D"}\` ${headBars.barA}\n🔴 ${w2.name}: \`${w2.hitboxes.head[0] || "N/D"}\` ${headBars.barB}\n\n` +
-        `**Pecho / Torso:**\n🟢 ${w1.name}: \`${w1.hitboxes.chest[0] || "N/D"}\` ${chestBars.barA}\n🔴 ${w2.name}: \`${w2.hitboxes.chest[0] || "N/D"}\` ${chestBars.barB}\n\n` +
-        `**Extremidades:**\n🟢 ${w1.name}: \`${w1.hitboxes.extremities[0] || "N/D"}\` ${extBars.barA}\n🔴 ${w2.name}: \`${w2.hitboxes.extremities[0] || "N/D"}\` ${extBars.barB}`,
+        `**Cabeza:**\n🟢 ${alignRow(w1.name, w1.hitboxes.head[0] || "N/D", "", nameWidth, 3)} ${headBars.barA}\n🔴 ${alignRow(w2.name, w2.hitboxes.head[0] || "N/D", "", nameWidth, 3)} ${headBars.barB}\n\n` +
+        `**Pecho / Torso:**\n🟢 ${alignRow(w1.name, w1.hitboxes.chest[0] || "N/D", "", nameWidth, 3)} ${chestBars.barA}\n🔴 ${alignRow(w2.name, w2.hitboxes.chest[0] || "N/D", "", nameWidth, 3)} ${chestBars.barB}\n\n` +
+        `**Extremidades:**\n🟢 ${alignRow(w1.name, w1.hitboxes.extremities[0] || "N/D", "", nameWidth, 3)} ${extBars.barA}\n🔴 ${alignRow(w2.name, w2.hitboxes.extremities[0] || "N/D", "", nameWidth, 3)} ${extBars.barB}`,
       inline: false,
     });
   }

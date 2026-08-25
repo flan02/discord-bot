@@ -32,12 +32,14 @@ const commands = [
         description: "Primera arma a comparar (ej: an-94)",
         type: 3, // STRING
         required: true,
+        autocomplete: true,
       },
       {
         name: "weapon2",
         description: "Segunda arma a comparar (ej: fg42)",
         type: 3, // STRING
         required: true,
+        autocomplete: true,
       },
       {
         name: "table",
@@ -46,6 +48,10 @@ const commands = [
         required: false,
       },
     ],
+  },
+  {
+    name: "weapons",
+    description: "Muestra la lista de armas disponibles para comparar",
   },
 ];
 
@@ -69,7 +75,7 @@ async function register() {
 
   if (response.ok) {
     console.log(
-      "✅ Comandos (/ping, /ranking, /meta, /compare) registrados exitosamente a nivel global!",
+      "✅ Comandos (/ping, /ranking, /meta, /compare, /weapons) registrados exitosamente a nivel global!",
     );
   } else {
     console.error("❌ Error al registrar comandos:", await response.text());

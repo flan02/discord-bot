@@ -29,17 +29,6 @@ export async function POST(req: Request) {
   const timestamp = req.headers.get("x-signature-timestamp");
   const rawBody = await req.text();
 
-  //1. Verificación de seguridad de Discord
-  // const isValidRequest =
-  //   signature &&
-  //   timestamp &&
-  //   process.env.DISCORD_PUBLIC_KEY &&
-  //   verifyKey(rawBody, signature, timestamp, process.env.DISCORD_PUBLIC_KEY);
-
-  // if (!isValidRequest) {
-  //   return new NextResponse("Invalid request signature", { status: 401 });
-  // }
-
   const publicKey = process.env.DISCORD_PUBLIC_KEY;
 
   if (!signature || !timestamp || !publicKey) {
@@ -119,100 +108,6 @@ export async function POST(req: Request) {
       }
 
       // Comando: /compare weapon1 weapon2 [table]
-      // if (commandName === "compare") {
-      //   const options = body.data.options || [];
-
-      //   const w1Input = options.find(
-      //     (opt: { name: string; value: string }) => opt.name === "weapon1",
-      //   )?.value as string;
-
-      //   const w2Input = options.find(
-      //     (opt: { name: string; value: string }) => opt.name === "weapon2",
-      //   )?.value as string;
-
-      //   const showTable =
-      //     (options.find(
-      //       (opt: { name: string; value: boolean }) =>
-      //         opt.name === "table" || opt.name === "tabla",
-      //     )?.value as boolean) || false;
-
-      //   if (!w1Input || !w2Input) {
-      //     return NextResponse.json({
-      //       type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-      //       data: {
-      //         content:
-      //           "⚠️ Debés especificar ambas armas para comparar. Ej: `/compare weapon1:an-94 weapon2:fg42`",
-      //         flags: 64,
-      //       },
-      //     });
-      //   }
-
-      //   try {
-      //     const statsMap = await fetchAllWeaponStats();
-
-      //     const cleanKey1 = w1Input.toLowerCase().replace(/[^a-z0-9]/g, "");
-      //     const cleanKey2 = w2Input.toLowerCase().replace(/[^a-z0-9]/g, "");
-
-      //     let weapon1 = statsMap.get(cleanKey1);
-      //     let weapon2 = statsMap.get(cleanKey2);
-
-      //     if (!weapon1) {
-      //       for (const [key, val] of statsMap.entries()) {
-      //         if (key.includes(cleanKey1) || cleanKey1.includes(key)) {
-      //           weapon1 = val;
-      //           break;
-      //         }
-      //       }
-      //     }
-
-      //     if (!weapon2) {
-      //       for (const [key, val] of statsMap.entries()) {
-      //         if (key.includes(cleanKey2) || cleanKey2.includes(key)) {
-      //           weapon2 = val;
-      //           break;
-      //         }
-      //       }
-      //     }
-
-      //     if (!weapon1 || !weapon2) {
-      //       const missing =
-      //         !weapon1 && !weapon2
-      //           ? `"${w1Input}" ni "${w2Input}"`
-      //           : !weapon1
-      //             ? `"${w1Input}"`
-      //             : `"${w2Input}"`;
-
-      //       return NextResponse.json({
-      //         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-      //         data: {
-      //           content: `❌ No se encontraron estadísticas para ${missing}. Verificá los nombres.`,
-      //           flags: 64,
-      //         },
-      //       });
-      //     }
-
-      //     const responsePayload = formatComparisonResponse(
-      //       weapon1,
-      //       weapon2,
-      //       showTable,
-      //     );
-
-      //     return NextResponse.json({
-      //       type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-      //       data: responsePayload,
-      //     });
-      //   } catch (error) {
-      //     console.error("Error procesando /compare:", error);
-      //     return NextResponse.json({
-      //       type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-      //       data: {
-      //         content: "❌ Ocurrió un error al obtener la comparativa.",
-      //         flags: 64,
-      //       },
-      //     });
-      //   }
-      // }
-
       if (commandName === "compare") {
         const options: Array<{
           name: string;
@@ -303,6 +198,40 @@ export async function POST(req: Request) {
               content: "❌ Ocurrió un error al obtener la comparativa.",
               flags: 64,
             },
+          });
+        }
+      }
+
+      if (commandName === "weapons") {
+        try {
+          const statsMap = await fetchAllWeaponStats();
+          const weaponNames = Array.from(statsMap.values())
+            .map((w) => `• \`${w.name}\``)
+            .sort();
+
+          // Dividimos en bloques si supera el límite de caracteres de Discord
+          const listText = weaponNames.slice(0, 35).join("\n");
+
+          return NextResponse.json({
+            type: 4,
+            data: {
+              embeds: [
+                {
+                  title: "🔫 Armas Disponibles para Comparar",
+                  description: `Usa estos nombres exactos en \`/compare\`:\n\n${listText}`,
+                  color: 0x9146ff,
+                  footer: {
+                    text: `Total de armas cargadas: ${statsMap.size}`,
+                  },
+                },
+              ],
+              flags: 64,
+            },
+          });
+        } catch (error) {
+          return NextResponse.json({
+            type: 4,
+            data: { content: `❌ Error al listar armas: ${error}`, flags: 64 },
           });
         }
       }
