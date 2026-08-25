@@ -252,30 +252,66 @@ export async function fetchAllWeaponStats(): Promise<Map<string, WeaponStats>> {
   });
 
   // 4. Extraer Secciones Generales (.st-data-row)
+  // $(".st-data-row").each((_, row) => {
+  //   const rawText = $(row).text();
+  //   for (const [key, weapon] of weaponsMap.entries()) {
+  //     if (
+  //       rawText.toLowerCase().includes(key) ||
+  //       rawText.includes(weapon.name)
+  //     ) {
+  //       const textValues = $(row)
+  //         .children()
+  //         .map((_, c) => $(c).text().trim())
+  //         .get();
+  //       const nums = textValues.map((t) => parseNumber(t)).filter((n) => n > 0);
+
+  //       if (rawText.includes("rpm")) {
+  //         weapon.fireRate = nums[0] || weapon.fireRate;
+  //         weapon.damagePerMag = nums[1] || weapon.damagePerMag;
+  //       } else if (rawText.includes("m/s") && !rawText.includes("°/s")) {
+  //         weapon.bulletVelocity = nums[0] || weapon.bulletVelocity;
+  //         weapon.effectiveRange = nums[2] || nums[1] || weapon.effectiveRange;
+  //       } else if (rawText.includes("°/s")) {
+  //         weapon.recoil = nums[1] || nums[0] || weapon.recoil;
+  //       } else if (rawText.includes("ms") && !rawText.includes("rpm")) {
+  //         weapon.adsTime = nums[0] || weapon.adsTime;
+  //       } else if (rawText.includes("°") && !rawText.includes("°/s")) {
+  //         weapon.hipfireSpread = nums[0] || weapon.hipfireSpread;
+  //       }
+  //     }
+  //   }
+  // });
+
   $(".st-data-row").each((_, row) => {
-    const rawText = $(row).text();
+    const rowText = $(row).text();
+
     for (const [key, weapon] of weaponsMap.entries()) {
       if (
-        rawText.toLowerCase().includes(key) ||
-        rawText.includes(weapon.name)
+        rowText.toLowerCase().includes(key) ||
+        rowText.includes(weapon.name)
       ) {
-        const textValues = $(row)
+        // Obtenemos solo celdas con valores numéricos excluyendo las que contienen el nombre del arma
+        const cells = $(row)
           .children()
           .map((_, c) => $(c).text().trim())
-          .get();
-        const nums = textValues.map((t) => parseNumber(t)).filter((n) => n > 0);
+          .get()
+          .filter(
+            (t) => !t.toLowerCase().includes(key) && !t.includes(weapon.name),
+          );
 
-        if (rawText.includes("rpm")) {
+        const nums = cells.map((t) => parseNumber(t)).filter((n) => n > 0);
+
+        if (rowText.includes("rpm")) {
           weapon.fireRate = nums[0] || weapon.fireRate;
           weapon.damagePerMag = nums[1] || weapon.damagePerMag;
-        } else if (rawText.includes("m/s") && !rawText.includes("°/s")) {
+        } else if (rowText.includes("m/s") && !rowText.includes("°/s")) {
           weapon.bulletVelocity = nums[0] || weapon.bulletVelocity;
           weapon.effectiveRange = nums[2] || nums[1] || weapon.effectiveRange;
-        } else if (rawText.includes("°/s")) {
+        } else if (rowText.includes("°/s")) {
           weapon.recoil = nums[1] || nums[0] || weapon.recoil;
-        } else if (rawText.includes("ms") && !rawText.includes("rpm")) {
+        } else if (rowText.includes("ms") && !rowText.includes("rpm")) {
           weapon.adsTime = nums[0] || weapon.adsTime;
-        } else if (rawText.includes("°") && !rawText.includes("°/s")) {
+        } else if (rowText.includes("°") && !rowText.includes("°/s")) {
           weapon.hipfireSpread = nums[0] || weapon.hipfireSpread;
         }
       }
@@ -284,44 +320,156 @@ export async function fetchAllWeaponStats(): Promise<Map<string, WeaponStats>> {
 
   // 5. Extraer Hitboxes / Daño por partes del cuerpo
   let currentDistances: string[] = [];
+  // $(".dp-head").each((_, el) => {
+  //   const dists = $(el)
+  //     .find("div, span")
+  //     .map((_, d) => $(d).text().trim())
+  //     .get()
+  //     .filter(Boolean);
+  //   if (dists.length >= 2) currentDistances = dists;
+  // });
+
   $(".dp-head").each((_, el) => {
-    const dists = $(el)
-      .find("div, span")
-      .map((_, d) => $(d).text().trim())
+    const textBlocks = $(el)
+      .children()
+      .map((_, d) => $(d).text().replace(/\s+/g, "").trim())
       .get()
-      .filter(Boolean);
-    if (dists.length >= 2) currentDistances = dists;
-  });
+      .filter((t) => t.length >= 2 && /\d/.test(t) && t !== "m");
 
-  $(".dp-row").each((_, row) => {
-    const label = $(row).find(".dp-cell-loc").text().trim().toLowerCase();
-    const vals = $(row)
-      .find(".dp-cell-val")
-      .map((_, c) => parseNumber($(c).text()))
-      .get();
-
-    for (const weapon of weaponsMap.values()) {
-      if (currentDistances.length > 0)
-        weapon.hitboxes.distanceRanges = currentDistances;
-      if (label.includes("cabeza")) weapon.hitboxes.head = vals;
-      else if (label.includes("cuello")) weapon.hitboxes.neck = vals;
-      else if (label.includes("pecho") || label.includes("torso"))
-        weapon.hitboxes.chest = vals;
-      else if (
-        label.includes("estómago") ||
-        label.includes("brazos") ||
-        label.includes("piernas") ||
-        label.includes("muslos")
-      ) {
-        weapon.hitboxes.extremities = vals;
-      }
+    if (textBlocks.length >= 2) {
+      currentDistances = textBlocks.map((t) => (t.endsWith("m") ? t : `${t}m`));
     }
   });
+
+  if (currentDistances.length === 0) {
+    currentDistances = ["0-54m", "54-72m", "72m+"];
+  }
+
+  // Detectamos qué arma tiene la pestaña activa en el HTML
+  let activeWeaponName = "";
+  $(".dp-tab, button.active, [data-active='true']").each((_, el) => {
+    const text = $(el).text().trim();
+    if (text) activeWeaponName = normalizeName(text);
+  });
+
+  // Si no se detecta la pestaña activa, usamos la primera que coincida
+  const activeWeapon =
+    (activeWeaponName ? weaponsMap.get(activeWeaponName) : null) ||
+    weaponsMap.get("an94") ||
+    Array.from(weaponsMap.values())[0];
+
+  if (activeWeapon) {
+    activeWeapon.hitboxes.distanceRanges = currentDistances;
+
+    $(".dp-row").each((_, row) => {
+      const label = $(row).find(".dp-cell-loc").text().trim().toLowerCase();
+      const vals = $(row)
+        .find(".dp-cell-val")
+        .map((_, c) => parseNumber($(c).text()))
+        .get();
+
+      for (const weapon of weaponsMap.values()) {
+        if (currentDistances.length > 0)
+          weapon.hitboxes.distanceRanges = currentDistances;
+        if (label.includes("cabeza")) weapon.hitboxes.head = vals;
+        else if (label.includes("cuello")) weapon.hitboxes.neck = vals;
+        else if (label.includes("pecho") || label.includes("torso"))
+          weapon.hitboxes.chest = vals;
+        else if (
+          label.includes("estómago") ||
+          label.includes("brazos") ||
+          label.includes("piernas") ||
+          label.includes("muslos")
+        ) {
+          weapon.hitboxes.extremities = vals;
+        }
+      }
+    });
+  }
 
   cachedStatsMap = weaponsMap;
   lastFetchTime = now;
 
   return weaponsMap;
+}
+
+export function formatComparisonResponse(
+  w1: WeaponStats,
+  w2: WeaponStats,
+  showTable = false,
+) {
+  const nameWidth = Math.max(w1.name.length, w2.name.length, 6);
+
+  const ttkShortBars = renderBar(w1.ttkShort, w2.ttkShort, true);
+  const rangeBars = renderBar(w1.effectiveRange, w2.effectiveRange, false);
+  const adsBars = renderBar(w1.adsTime, w2.adsTime, true);
+  const fireRateBars = renderBar(w1.fireRate, w2.fireRate, false);
+
+  const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+    {
+      name: "⚡ Letalidad (TTK Corto Alcance)",
+      value: `${alignRow(w1.name, w1.ttkShort || "N/D", w1.ttkShort ? "ms" : "", nameWidth, 7)} ${ttkShortBars.barA}\n${alignRow(w2.name, w2.ttkShort || "N/D", w2.ttkShort ? "ms" : "", nameWidth, 7)} ${ttkShortBars.barB}`,
+      inline: false,
+    },
+    {
+      name: "📏 Rango Efectivo",
+      value: `${alignRow(w1.name, w1.effectiveRange || "N/D", w1.effectiveRange ? "m" : "", nameWidth, 6)} ${rangeBars.barA}\n${alignRow(w2.name, w2.effectiveRange || "N/D", w2.effectiveRange ? "m" : "", nameWidth, 6)} ${rangeBars.barB}`,
+      inline: false,
+    },
+    {
+      name: "🏃 Agilidad (Tiempo de Apuntado ADS)",
+      value: `${alignRow(w1.name, w1.adsTime || "N/D", w1.adsTime ? "ms" : "", nameWidth, 7)} ${adsBars.barA}\n${alignRow(w2.name, w2.adsTime || "N/D", w2.adsTime ? "ms" : "", nameWidth, 7)} ${adsBars.barB}`,
+      inline: false,
+    },
+    {
+      name: "🔥 Cadencia de Fuego",
+      value: `${alignRow(w1.name, w1.fireRate || "N/D", w1.fireRate ? "RPM" : "", nameWidth, 8)} ${fireRateBars.barA}\n${alignRow(w2.name, w2.fireRate || "N/D", w2.fireRate ? "RPM" : "", nameWidth, 8)} ${fireRateBars.barB}`,
+      inline: false,
+    },
+  ];
+
+  if (showTable) {
+    const buildWeaponDamageBlock = (w: WeaponStats) => {
+      const ranges = w.hitboxes?.distanceRanges?.length
+        ? w.hitboxes.distanceRanges
+        : ["Corta", "Media", "Larga"];
+
+      const r1 = (ranges[0] || "0-20m").padEnd(10, " ");
+      const r2 = (ranges[1] || "20-40m").padEnd(10, " ");
+      const r3 = (ranges[2] || "40m+").padEnd(8, " ");
+
+      const getVal = (arr: number[] = [], idx: number) =>
+        arr[idx] ? String(arr[idx]).padEnd(10, " ") : "-".padEnd(10, " ");
+
+      const header =
+        `Zona           | ${r1} | ${r2} | ${r3}\n` + "─".repeat(48);
+      const rowHead = `Cabeza         | ${getVal(w.hitboxes?.head, 0)} | ${getVal(w.hitboxes?.head, 1)} | ${getVal(w.hitboxes?.head, 2).trim()}`;
+      const rowChest = `Pecho / Torso  | ${getVal(w.hitboxes?.chest, 0)} | ${getVal(w.hitboxes?.chest, 1)} | ${getVal(w.hitboxes?.chest, 2).trim()}`;
+      const rowExt = `Extremidades   | ${getVal(w.hitboxes?.extremities, 0)} | ${getVal(w.hitboxes?.extremities, 1)} | ${getVal(w.hitboxes?.extremities, 2).trim()}`;
+
+      return `**${w.name}**\n\`\`\`text\n${header}\n${rowHead}\n${rowChest}\n${rowExt}\n\`\`\``;
+    };
+
+    fields.push({
+      name: "🎯 Perfil de Daño y Caída por Distancia",
+      value: `${buildWeaponDamageBlock(w1)}\n${buildWeaponDamageBlock(w2)}`,
+      inline: false,
+    });
+  }
+
+  return {
+    embeds: [
+      {
+        title: `⚔️ Comparativa: ${w1.name} vs ${w2.name}`,
+        color: 0x9146ff,
+        fields,
+        footer: {
+          text: "Datos extraídos de wzstats.gg • Warzone Battle Royale",
+        },
+        timestamp: new Date().toISOString(),
+      },
+    ],
+  };
 }
 
 // export function formatComparisonResponse(
@@ -402,82 +550,3 @@ export async function fetchAllWeaponStats(): Promise<Map<string, WeaponStats>> {
 //     ],
 //   };
 // }
-
-export function formatComparisonResponse(
-  w1: WeaponStats,
-  w2: WeaponStats,
-  showTable = false,
-) {
-  const nameWidth = Math.max(w1.name.length, w2.name.length, 6);
-
-  const ttkShortBars = renderBar(w1.ttkShort, w2.ttkShort, true);
-  const rangeBars = renderBar(w1.effectiveRange, w2.effectiveRange, false);
-  const adsBars = renderBar(w1.adsTime, w2.adsTime, true);
-  const fireRateBars = renderBar(w1.fireRate, w2.fireRate, false);
-
-  const fields: Array<{ name: string; value: string; inline?: boolean }> = [
-    {
-      name: "⚡ Letalidad (TTK Corto Alcance)",
-      value: `${alignRow(w1.name, w1.ttkShort || "N/D", w1.ttkShort ? "ms" : "", nameWidth, 7)} ${ttkShortBars.barA}\n${alignRow(w2.name, w2.ttkShort || "N/D", w2.ttkShort ? "ms" : "", nameWidth, 7)} ${ttkShortBars.barB}`,
-      inline: false,
-    },
-    {
-      name: "📏 Rango Efectivo",
-      value: `${alignRow(w1.name, w1.effectiveRange || "N/D", w1.effectiveRange ? "m" : "", nameWidth, 6)} ${rangeBars.barA}\n${alignRow(w2.name, w2.effectiveRange || "N/D", w2.effectiveRange ? "m" : "", nameWidth, 6)} ${rangeBars.barB}`,
-      inline: false,
-    },
-    {
-      name: "🏃 Agilidad (Tiempo de Apuntado ADS)",
-      value: `${alignRow(w1.name, w1.adsTime || "N/D", w1.adsTime ? "ms" : "", nameWidth, 7)} ${adsBars.barA}\n${alignRow(w2.name, w2.adsTime || "N/D", w2.adsTime ? "ms" : "", nameWidth, 7)} ${adsBars.barB}`,
-      inline: false,
-    },
-    {
-      name: "🔥 Cadencia de Fuego",
-      value: `${alignRow(w1.name, w1.fireRate || "N/D", w1.fireRate ? "RPM" : "", nameWidth, 8)} ${fireRateBars.barA}\n${alignRow(w2.name, w2.fireRate || "N/D", w2.fireRate ? "RPM" : "", nameWidth, 8)} ${fireRateBars.barB}`,
-      inline: false,
-    },
-  ];
-
-  if (showTable) {
-    const buildWeaponDamageBlock = (w: WeaponStats) => {
-      const ranges = w.hitboxes?.distanceRanges?.length
-        ? w.hitboxes.distanceRanges
-        : ["Corta", "Media", "Larga"];
-
-      const r1 = (ranges[0] || "0-20m").padEnd(10, " ");
-      const r2 = (ranges[1] || "20-40m").padEnd(10, " ");
-      const r3 = (ranges[2] || "40m+").padEnd(8, " ");
-
-      const getVal = (arr: number[] = [], idx: number) =>
-        arr[idx] ? String(arr[idx]).padEnd(10, " ") : "-".padEnd(10, " ");
-
-      const header =
-        `Zona           | ${r1} | ${r2} | ${r3}\n` + "─".repeat(48);
-      const rowHead = `Cabeza         | ${getVal(w.hitboxes?.head, 0)} | ${getVal(w.hitboxes?.head, 1)} | ${getVal(w.hitboxes?.head, 2).trim()}`;
-      const rowChest = `Pecho / Torso  | ${getVal(w.hitboxes?.chest, 0)} | ${getVal(w.hitboxes?.chest, 1)} | ${getVal(w.hitboxes?.chest, 2).trim()}`;
-      const rowExt = `Extremidades   | ${getVal(w.hitboxes?.extremities, 0)} | ${getVal(w.hitboxes?.extremities, 1)} | ${getVal(w.hitboxes?.extremities, 2).trim()}`;
-
-      return `**${w.name}**\n\`\`\`text\n${header}\n${rowHead}\n${rowChest}\n${rowExt}\n\`\`\``;
-    };
-
-    fields.push({
-      name: "🎯 Perfil de Daño y Caída por Distancia",
-      value: `${buildWeaponDamageBlock(w1)}\n${buildWeaponDamageBlock(w2)}`,
-      inline: false,
-    });
-  }
-
-  return {
-    embeds: [
-      {
-        title: `⚔️ Comparativa: ${w1.name} vs ${w2.name}`,
-        color: 0x9146ff,
-        fields,
-        footer: {
-          text: "Datos extraídos de wzstats.gg • Warzone Battle Royale",
-        },
-        timestamp: new Date().toISOString(),
-      },
-    ],
-  };
-}

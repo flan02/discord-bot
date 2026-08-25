@@ -11,6 +11,7 @@ import {
   fetchAllWeaponStats,
   formatComparisonResponse,
 } from "@/services/stats";
+import { findWeaponInMap } from "@/utils/helpers";
 
 const InteractionType = {
   PING: 1,
@@ -143,19 +144,6 @@ export async function POST(req: Request) {
 
         if (choices.length >= 25) break; // Discord rechaza más de 25 opciones
       }
-      // const choices = weaponNames
-      //   .filter((weaponName) =>
-      //     weaponName
-      //       .toLowerCase()
-      //       .replace(/[^a-z0-9]/g, "")
-      //       .includes(query),
-      //   )
-      //   .slice(0, 50)
-      //   .map((weaponName) => ({
-      //     name: weaponName, // 👈 Lo que ve el usuario en el desplegable (ej: "AN-94")
-      //     value: weaponName.toLowerCase().replace(/[^a-z0-9]/g, ""), // 👈 El slug limpio que recibe el bot (ej: "an94")
-      //   }));
-      // .map((name) => ({ name, value: name }));
 
       return NextResponse.json({
         type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
@@ -246,29 +234,31 @@ export async function POST(req: Request) {
         try {
           const statsMap = await fetchAllWeaponStats();
 
-          const cleanKey1 = w1Input.toLowerCase().replace(/[^a-z0-9]/g, "");
-          const cleanKey2 = w2Input.toLowerCase().replace(/[^a-z0-9]/g, "");
+          const weapon1 = findWeaponInMap(w1Input, statsMap);
+          const weapon2 = findWeaponInMap(w2Input, statsMap);
+          // const cleanKey1 = w1Input.toLowerCase().replace(/[^a-z0-9]/g, "");
+          // const cleanKey2 = w2Input.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-          let weapon1 = statsMap.get(cleanKey1);
-          let weapon2 = statsMap.get(cleanKey2);
+          // let weapon1 = statsMap.get(cleanKey1);
+          // let weapon2 = statsMap.get(cleanKey2);
 
-          if (!weapon1) {
-            for (const [key, val] of statsMap.entries()) {
-              if (key.includes(cleanKey1) || cleanKey1.includes(key)) {
-                weapon1 = val;
-                break;
-              }
-            }
-          }
+          // if (!weapon1) {
+          //   for (const [key, val] of statsMap.entries()) {
+          //     if (key.includes(cleanKey1) || cleanKey1.includes(key)) {
+          //       weapon1 = val;
+          //       break;
+          //     }
+          //   }
+          // }
 
-          if (!weapon2) {
-            for (const [key, val] of statsMap.entries()) {
-              if (key.includes(cleanKey2) || cleanKey2.includes(key)) {
-                weapon2 = val;
-                break;
-              }
-            }
-          }
+          // if (!weapon2) {
+          //   for (const [key, val] of statsMap.entries()) {
+          //     if (key.includes(cleanKey2) || cleanKey2.includes(key)) {
+          //       weapon2 = val;
+          //       break;
+          //     }
+          //   }
+          // }
 
           if (!weapon1 || !weapon2) {
             const missing =
