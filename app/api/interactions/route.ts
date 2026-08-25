@@ -13,22 +13,21 @@ import {
   getWeaponRealStats,
 } from "@/services/stats";
 import { findWeaponInMap } from "@/utils/helpers";
-import {
-  ALLOWED_WEAPONS,
-  ALLOWED_WEAPONS_SET,
-  BANNED_WEAPONS,
-  FALLOUT_WEAPONS,
-} from "@/types";
+import { ALLOWED_WEAPONS, ALLOWED_WEAPONS_SET } from "@/types";
 
 const InteractionType = {
   PING: 1,
   APPLICATION_COMMAND: 2,
+  MESSAGE_COMPONENT: 3,
   APPLICATION_COMMAND_AUTOCOMPLETE: 4,
 };
 
 const InteractionResponseType = {
   PONG: 1,
   CHANNEL_MESSAGE_WITH_SOURCE: 4,
+  DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE: 5,
+  DEFERRED_UPDATE_MESSAGE: 6,
+  UPDATE_MESSAGE: 7,
   APPLICATION_COMMAND_AUTOCOMPLETE_RESULT: 8,
 };
 
@@ -147,6 +146,191 @@ export async function POST(req: Request) {
         type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
         data: { choices },
       });
+    }
+
+    // Manejo de interacción de botones (Componentes)
+    // if (body.type === InteractionType.MESSAGE_COMPONENT) {
+    //   const customId = body.data?.custom_id || "";
+
+    //   if (customId.startsWith("weapons_page_")) {
+    //     const page = parseInt(customId.replace("weapons_page_", ""), 10) || 1;
+    //     const statsMap = await fetchAllWeaponStats();
+
+    //     const weaponEntries = Array.from(statsMap.values())
+    //       .filter((w) => {
+    //         if (!w || !w.name) return false;
+    //         if (/\b(tier|warzone|meta|ranking)\b/i.test(w.name)) return false;
+
+    //         const cleanKey = (w.slug || w.name)
+    //           .toLowerCase()
+    //           .replace(/[^a-z0-9]/g, "");
+
+    //         return ALLOWED_WEAPONS_SET.has(cleanKey);
+    //       })
+    //       .map((w) => {
+    //         const slug =
+    //           w.slug ||
+    //           w.name
+    //             .toLowerCase()
+    //             .replace(/[^a-z0-9]+/g, "-")
+    //             .replace(/^-+|-+$/g, "");
+
+    //         return `• **${w.name}** ➔ \`${slug}\``;
+    //       });
+
+    //     const totalCount = weaponEntries.length;
+    //     const pageSize = 30;
+    //     const totalPages = Math.ceil(totalCount / pageSize);
+    //     const start = (page - 1) * pageSize;
+    //     const pageItems = weaponEntries
+    //       .slice(start, start + pageSize)
+    //       .join("\n");
+
+    //     return NextResponse.json({
+    //       type: InteractionResponseType.UPDATE_MESSAGE, // Tipo 7: actualiza el mensaje existente en pantalla
+    //       data: {
+    //         embeds: [
+    //           {
+    //             title: `🔫 Lista de armas disponibles (Pág. ${page}/${totalPages})`,
+    //             description:
+    //               "Para comparar dos armas, podés usar el **Nombre** o su **Slug**:\n" +
+    //               "Ej: `/compare weapon1:an-94 weapon2:mk35-isr`\n\n" +
+    //               pageItems,
+    //             color: 0x9146ff,
+    //             footer: {
+    //               text: `Página ${page} de ${totalPages} • Total: ${totalCount} armas`,
+    //             },
+    //           },
+    //         ],
+    //         components: [
+    //           {
+    //             type: 1,
+    //             components: [
+    //               {
+    //                 type: 2,
+    //                 style: 2,
+    //                 label: "◀️ Anterior",
+    //                 custom_id: `weapons_page_${page - 1}`,
+    //                 disabled: page <= 1,
+    //               },
+    //               {
+    //                 type: 2,
+    //                 style: 1,
+    //                 label: "Siguiente ▶️",
+    //                 custom_id: `weapons_page_${page + 1}`,
+    //                 disabled: page >= totalPages,
+    //               },
+    //             ],
+    //           },
+    //         ],
+    //       },
+    //     });
+    //   }
+    // }
+    if (body.type === InteractionType.MESSAGE_COMPONENT) {
+      const customId = body.data?.custom_id || "";
+
+      if (customId.startsWith("weapons_page_")) {
+        const page = parseInt(customId.replace("weapons_page_", ""), 10) || 1;
+
+        let weaponEntries: Array<{ name: string; slug: string }> = [];
+
+        try {
+          const statsMap = await Promise.race([
+            fetchAllWeaponStats(),
+            new Promise<null>((resolve) =>
+              setTimeout(() => resolve(null), 800),
+            ),
+          ]);
+
+          if (statsMap && statsMap.size > 0) {
+            weaponEntries = Array.from(statsMap.values()).map((w) => ({
+              name: w.name,
+              slug:
+                w.slug ||
+                w.name
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, "-")
+                  .replace(/^-+|-+$/g, ""),
+            }));
+          } else {
+            weaponEntries = ALLOWED_WEAPONS.map((name) => ({
+              name,
+              slug: name
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-+|-+$/g, ""),
+            }));
+          }
+        } catch {
+          weaponEntries = ALLOWED_WEAPONS.map((name) => ({
+            name,
+            slug: name
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/^-+|-+$/g, ""),
+          }));
+        }
+
+        const validLines = weaponEntries
+          .filter((w) => {
+            if (!w || !w.name) return false;
+            if (/\b(tier|warzone|meta|ranking)\b/i.test(w.name)) return false;
+
+            const cleanKey = (w.slug || w.name)
+              .toLowerCase()
+              .replace(/[^a-z0-9]/g, "");
+
+            return ALLOWED_WEAPONS_SET.has(cleanKey);
+          })
+          .map((w) => `• **${w.name}** ➔ \`${w.slug}\``);
+
+        const totalCount = validLines.length;
+        const pageSize = 30;
+        const totalPages = Math.ceil(totalCount / pageSize) || 1;
+        const start = (page - 1) * pageSize;
+        const pageItems = validLines.slice(start, start + pageSize).join("\n");
+
+        return NextResponse.json({
+          type: InteractionResponseType.UPDATE_MESSAGE,
+          data: {
+            embeds: [
+              {
+                title: `🔫 Lista de armas disponibles (Pág. ${page}/${totalPages})`,
+                description:
+                  "Para comparar dos armas, podés usar el **Nombre** o su **Slug**:\n" +
+                  "Ej: `/compare weapon1:an-94 weapon2:mk35-isr`\n\n" +
+                  pageItems,
+                color: 0x9146ff,
+                footer: {
+                  text: `Página ${page} de ${totalPages} • Total: ${totalCount} armas`,
+                },
+              },
+            ],
+            components: [
+              {
+                type: 1,
+                components: [
+                  {
+                    type: 2,
+                    style: 2,
+                    label: "◀️ Anterior",
+                    custom_id: `weapons_page_${page - 1}`,
+                    disabled: page <= 1,
+                  },
+                  {
+                    type: 2,
+                    style: 1,
+                    label: "Siguiente ▶️",
+                    custom_id: `weapons_page_${page + 1}`,
+                    disabled: page >= totalPages,
+                  },
+                ],
+              },
+            ],
+          },
+        });
+      }
     }
 
     // 3. Comandos Slash
@@ -282,11 +466,66 @@ export async function POST(req: Request) {
         }
       }
 
+      // if (commandName === "weapons") {
+      //   try {
+      //     const statsMap = await fetchAllWeaponStats();
+
+      //     // 1. Filtramos dejando únicamente las armas de la lista permitida
+      //     const weaponEntries = Array.from(statsMap.values())
+      //       .filter((w) => {
+      //         if (!w || !w.name) return false;
+      //         if (/\b(tier|warzone|meta|ranking)\b/i.test(w.name)) return false;
+
+      //         const cleanKey = (w.slug || w.name)
+      //           .toLowerCase()
+      //           .replace(/[^a-z0-9]/g, "");
+
+      //         return ALLOWED_WEAPONS_SET.has(cleanKey);
+      //       })
+      //       .map((w) => {
+      //         const slug =
+      //           w.slug ||
+      //           w.name
+      //             .toLowerCase()
+      //             .replace(/[^a-z0-9]+/g, "-")
+      //             .replace(/^-+|-+$/g, "");
+
+      //         return `• **${w.name}** ➔ \`${slug}\``;
+      //       });
+
+      //     const totalCount = weaponEntries.length;
+      //     const listText = weaponEntries.slice(0, 35).join("\n");
+
+      //     return NextResponse.json({
+      //       type: 4,
+      //       data: {
+      //         embeds: [
+      //           {
+      //             title: "🔫 Lista de armas disponibles",
+      //             description:
+      //               "Para comparar dos armas, podés usar el **Nombre** o su **Identificador / Slug**:\n" +
+      //               "Ej: `/compare weapon1:an-94 weapon2:mk35-isr`\n\n" +
+      //               listText,
+      //             color: 0x9146ff,
+      //             footer: {
+      //               text: `Mostrando ${Math.min(35, totalCount)} de ${totalCount} armas disponibles`,
+      //             },
+      //           },
+      //         ],
+      //         flags: 64,
+      //       },
+      //     });
+      //   } catch (error) {
+      //     return NextResponse.json({
+      //       type: 4,
+      //       data: { content: `❌ Error al listar armas: ${error}`, flags: 64 },
+      //     });
+      //   }
+      // }
       if (commandName === "weapons") {
         try {
           const statsMap = await fetchAllWeaponStats();
 
-          // 1. Filtramos dejando únicamente las armas de la lista permitida
           const weaponEntries = Array.from(statsMap.values())
             .filter((w) => {
               if (!w || !w.name) return false;
@@ -310,25 +549,48 @@ export async function POST(req: Request) {
             });
 
           const totalCount = weaponEntries.length;
-          const listText = weaponEntries.slice(0, 35).join("\n");
+          const pageSize = 30;
+          const totalPages = Math.ceil(totalCount / pageSize);
+          const page1 = weaponEntries.slice(0, pageSize).join("\n");
 
           return NextResponse.json({
-            type: 4,
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: {
               embeds: [
                 {
-                  title: "🔫 Lista de armas disponibles",
+                  title: `🔫 Lista de armas disponibles (Pág. 1/${totalPages})`,
                   description:
-                    "Para comparar dos armas, podés usar el **Nombre** o su **Identificador / Slug**:\n" +
+                    "Para comparar dos armas, podés usar el **Nombre** o su **Slug**:\n" +
                     "Ej: `/compare weapon1:an-94 weapon2:mk35-isr`\n\n" +
-                    listText,
+                    page1,
                   color: 0x9146ff,
                   footer: {
-                    text: `Mostrando ${Math.min(35, totalCount)} de ${totalCount} armas disponibles`,
+                    text: `Página 1 de ${totalPages} • Mostrando ${Math.min(pageSize, totalCount)} de ${totalCount} armas`,
                   },
                 },
               ],
-              flags: 64,
+              components: [
+                {
+                  type: InteractionType.MESSAGE_COMPONENT, // Action Row
+                  components: [
+                    {
+                      type: 2, // Button
+                      style: 2, // Secondary (Gris)
+                      label: "◀️ Anterior",
+                      custom_id: "weapons_page_1",
+                      disabled: true,
+                    },
+                    {
+                      type: 2,
+                      style: 1, // Primary (Azul/Blurple)
+                      label: "Siguiente ▶️",
+                      custom_id: "weapons_page_2",
+                      disabled: totalPages <= 1,
+                    },
+                  ],
+                },
+              ],
+              flags: 64, // Ephemeral (solo visible para el usuario)
             },
           });
         } catch (error) {
