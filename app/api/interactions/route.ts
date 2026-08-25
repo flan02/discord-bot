@@ -13,7 +13,12 @@ import {
   getWeaponRealStats,
 } from "@/services/stats";
 import { findWeaponInMap } from "@/utils/helpers";
-import { BANNED_WEAPONS, FALLOUT_WEAPONS } from "@/types";
+import {
+  ALLOWED_WEAPONS,
+  ALLOWED_WEAPONS_SET,
+  BANNED_WEAPONS,
+  FALLOUT_WEAPONS,
+} from "@/types";
 
 const InteractionType = {
   PING: 1,
@@ -70,55 +75,72 @@ export async function POST(req: Request) {
         .toLowerCase()
         .replace(/[^a-z0-9]/g, "");
 
-      const bannedWeapons = new Set(
-        BANNED_WEAPONS.map((name) =>
-          name.toLowerCase().replace(/[^a-z0-9]/g, ""),
-        ),
-      );
-
-      let weaponNames: string[] = [];
+      let weaponEntries: Array<{ name: string; slug: string }> = [];
 
       try {
-        // Intenta usar lo que ya está en RAM con un corte de seguridad a los 800ms
         const statsMap = await Promise.race([
           fetchAllWeaponStats(),
           new Promise<null>((resolve) => setTimeout(() => resolve(null), 800)),
         ]);
 
         if (statsMap && statsMap.size > 0) {
-          weaponNames = Array.from(statsMap.values()).map((w) => w.name);
+          weaponEntries = Array.from(statsMap.values()).map((w) => ({
+            name: w.name,
+            slug:
+              w.slug ||
+              w.name
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-+|-+$/g, ""),
+          }));
         } else {
-          weaponNames = FALLOUT_WEAPONS;
+          weaponEntries = ALLOWED_WEAPONS.map((name) => ({
+            name,
+            slug: name
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/^-+|-+$/g, ""),
+          }));
         }
       } catch {
-        weaponNames = FALLOUT_WEAPONS;
+        weaponEntries = ALLOWED_WEAPONS.map((name) => ({
+          name,
+          slug: name
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, ""),
+        }));
       }
 
-      const filteredNames = weaponNames.filter((name) => {
-        if (!name) return false;
-        if (/\b(tier|warzone|meta|ranking)\b/i.test(name)) return false;
+      // Filtro exclusivo por lista permitida (ALLOWED_WEAPONS_SET) y texto de búsqueda
+      const filteredEntries = weaponEntries.filter((w) => {
+        if (!w || !w.name) return false;
+        if (/\b(tier|warzone|meta|ranking)\b/i.test(w.name)) return false;
 
-        const clean = name.toLowerCase().replace(/[^a-z0-9]/g, "");
-        if (bannedWeapons.has(clean)) return false; // 👈 Excluye RAM-7, Striker, etc.
+        const cleanKey = (w.slug || w.name)
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "");
 
-        return clean.includes(query);
+        if (!ALLOWED_WEAPONS_SET.has(cleanKey)) return false;
+
+        return cleanKey.includes(query);
       });
 
-      // 2. Eliminamos duplicados tanto en nombre como en slug (requisito de Discord)
+      // Eliminación de duplicados y corte en 25 opciones (máximo permitido por Discord)
       const seenSlugs = new Set<string>();
       const choices: Array<{ name: string; value: string }> = [];
 
-      for (const name of filteredNames) {
-        const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "");
-        if (!slug || seenSlugs.has(slug)) continue;
+      for (const w of filteredEntries) {
+        const cleanSlug = w.slug.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (!cleanSlug || seenSlugs.has(cleanSlug)) continue;
 
-        seenSlugs.add(slug);
+        seenSlugs.add(cleanSlug);
         choices.push({
-          name: name.slice(0, 100),
-          value: slug.slice(0, 100),
+          name: w.name.slice(0, 100),
+          value: w.slug.slice(0, 100),
         });
 
-        if (choices.length >= 25) break; // Discord rechaza más de 25 opciones
+        if (choices.length >= 25) break;
       }
 
       return NextResponse.json({
@@ -263,23 +285,18 @@ export async function POST(req: Request) {
       if (commandName === "weapons") {
         try {
           const statsMap = await fetchAllWeaponStats();
-          // Dividimos en bloques si supera el límite de caracteres de Discord
-          //TODO: Ban weapons that users can't compare (ram-7, striker)
-          // const bannedWeapons = new Set(BANNED_WEAPONS);
-          const bannedWeapons = new Set(
-            BANNED_WEAPONS.map((name) =>
-              name.toLowerCase().replace(/[^a-z0-9]/g, ""),
-            ),
-          );
 
-          const weaponNames = Array.from(statsMap.values())
-            // .map((w) => w.name)
+          // 1. Filtramos dejando únicamente las armas de la lista permitida
+          const weaponEntries = Array.from(statsMap.values())
             .filter((w) => {
               if (!w || !w.name) return false;
               if (/\b(tier|warzone|meta|ranking)\b/i.test(w.name)) return false;
 
-              const cleanName = w.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-              return !bannedWeapons.has(cleanName); // 👈 Filtra las armas incompatibles
+              const cleanKey = (w.slug || w.name)
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, "");
+
+              return ALLOWED_WEAPONS_SET.has(cleanKey);
             })
             .map((w) => {
               const slug =
@@ -289,12 +306,11 @@ export async function POST(req: Request) {
                   .replace(/[^a-z0-9]+/g, "-")
                   .replace(/^-+|-+$/g, "");
 
-              // Formato claro: Nombre visible + Slug entre backticks para copiar
               return `• **${w.name}** ➔ \`${slug}\``;
             });
-          // .map((name) => `• \`${name}\``); // 👈 Formato para Discord
 
-          const listText = weaponNames.slice(0, 50).join("\n");
+          const totalCount = weaponEntries.length;
+          const listText = weaponEntries.slice(0, 35).join("\n");
 
           return NextResponse.json({
             type: 4,
@@ -302,15 +318,13 @@ export async function POST(req: Request) {
               embeds: [
                 {
                   title: "🔫 Lista de armas disponibles",
-                  // description: `Usa estos nombres exactos en \`/compare\`:\n\n${listText}`,
                   description:
                     "Para comparar dos armas, podés usar el **Nombre** o su **Identificador / Slug**:\n" +
                     "Ej: `/compare weapon1:an-94 weapon2:mk35-isr`\n\n" +
                     listText,
                   color: 0x9146ff,
                   footer: {
-                    // text: `Total de armas cargadas: ${statsMap.size}`,
-                    text: `Mostrando las 50 más destacadas de ${weaponNames.length} armas cargadas`,
+                    text: `Mostrando ${Math.min(35, totalCount)} de ${totalCount} armas disponibles`,
                   },
                 },
               ],
