@@ -128,7 +128,7 @@ export function formatComparisonResponse(
     };
 
     fields.push({
-      name: "🎯 Perfil de Daño y Caída por Distancia",
+      name: "\n🎯 Perfil de Daño y Caída por Distancia",
       value: `${buildWeaponDamageBlock(w1)}\n${buildWeaponDamageBlock(w2)}`,
       inline: false,
     });
@@ -137,7 +137,7 @@ export function formatComparisonResponse(
   return {
     embeds: [
       {
-        title: `⚔️ Comparativa: ${w1.name} vs ${w2.name}`,
+        title: `⚔️ ${w1.name} vs ${w2.name}`,
         color: 0x9146ff,
         fields,
         footer: {

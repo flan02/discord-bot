@@ -205,7 +205,8 @@ export async function POST(req: Request) {
         return NextResponse.json({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
-            content: "🏓 Pong! El bot está online y respondiendo.",
+            content:
+              "📻 **UAV en línea.** Comunicaciones activas y enlace con la armería confirmado. 🎯",
             flags: 64,
           },
         });
@@ -329,62 +330,6 @@ export async function POST(req: Request) {
         }
       }
 
-      // if (commandName === "weapons") {
-      //   try {
-      //     const statsMap = await fetchAllWeaponStats();
-
-      //     // 1. Filtramos dejando únicamente las armas de la lista permitida
-      //     const weaponEntries = Array.from(statsMap.values())
-      //       .filter((w) => {
-      //         if (!w || !w.name) return false;
-      //         if (/\b(tier|warzone|meta|ranking)\b/i.test(w.name)) return false;
-
-      //         const cleanKey = (w.slug || w.name)
-      //           .toLowerCase()
-      //           .replace(/[^a-z0-9]/g, "");
-
-      //         return ALLOWED_WEAPONS_SET.has(cleanKey);
-      //       })
-      //       .map((w) => {
-      //         const slug =
-      //           w.slug ||
-      //           w.name
-      //             .toLowerCase()
-      //             .replace(/[^a-z0-9]+/g, "-")
-      //             .replace(/^-+|-+$/g, "");
-
-      //         return `• **${w.name}** ➔ \`${slug}\``;
-      //       });
-
-      //     const totalCount = weaponEntries.length;
-      //     const listText = weaponEntries.slice(0, 35).join("\n");
-
-      //     return NextResponse.json({
-      //       type: 4,
-      //       data: {
-      //         embeds: [
-      //           {
-      //             title: "🔫 Lista de armas disponibles",
-      //             description:
-      //               "Para comparar dos armas, podés usar el **Nombre** o su **Identificador / Slug**:\n" +
-      //               "Ej: `/compare weapon1:an-94 weapon2:mk35-isr`\n\n" +
-      //               listText,
-      //             color: 0x9146ff,
-      //             footer: {
-      //               text: `Mostrando ${Math.min(35, totalCount)} de ${totalCount} armas disponibles`,
-      //             },
-      //           },
-      //         ],
-      //         flags: 64,
-      //       },
-      //     });
-      //   } catch (error) {
-      //     return NextResponse.json({
-      //       type: 4,
-      //       data: { content: `❌ Error al listar armas: ${error}`, flags: 64 },
-      //     });
-      //   }
-      // }
       if (commandName === "weapons") {
         try {
           // Generación instantánea en memoria (0ms de latencia)
@@ -448,6 +393,48 @@ export async function POST(req: Request) {
             data: { content: `❌ Error al listar armas: ${error}`, flags: 64 },
           });
         }
+      }
+
+      if (commandName === "help") {
+        return NextResponse.json({
+          type: 4, // CHANNEL_MESSAGE_WITH_SOURCE
+          data: {
+            embeds: [
+              {
+                title: "📖 Guía de Comandos del Bot",
+                description:
+                  "Bot de estadísticas y comparación de armas para **Warzone**.\n" +
+                  "Todos los datos son extraídos en tiempo real de **wzstats.gg**.\n",
+                color: 0x9146ff,
+                fields: [
+                  {
+                    name: "⚔️ `/compare [weapon1] [weapon2]`",
+                    value:
+                      "Compara dos armas frente a frente (TTK, rango, ADS, cadencia y tabla de daño por zonas).\n" +
+                      "Ej: `/compare weapon1:an-94 weapon2:mpc-25`\n" +
+                      "*(Cuenta con autocompletado en tiempo real mientras escribís)*.",
+                    inline: false,
+                  },
+                  {
+                    name: "🔫 `/weapons`",
+                    value:
+                      "Muestra el catálogo completo de las 60 armas compatibles con paginación interactiva (◀️ / ▶️).",
+                    inline: false,
+                  },
+                  {
+                    name: "🏓 `/ping`",
+                    value: "Comprueba el estado y la latencia del bot.",
+                    inline: false,
+                  },
+                ],
+                footer: {
+                  text: "Tip: Podés escribir solo las primeras letras del arma para encontrarla rápido.",
+                },
+              },
+            ],
+            flags: 64, // Ephemeral (solo lo ve quien ejecuta el comando)
+          },
+        });
       }
     }
 

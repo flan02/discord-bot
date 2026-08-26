@@ -53,6 +53,10 @@ const commands = [
     name: "weapons",
     description: "Muestra la lista de armas disponibles para comparar",
   },
+  {
+    name: "help",
+    description: "Muestra la guía de uso y comandos disponibles del bot",
+  },
 ];
 
 async function register() {
