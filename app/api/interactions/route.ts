@@ -403,36 +403,49 @@ export async function POST(req: Request) {
               {
                 title: "📖 Guía de Comandos del Bot",
                 description:
-                  "Bot de estadísticas y comparación de armas para **Warzone**.\n" +
-                  "Todos los datos son extraídos en tiempo real de **wzstats.gg**.\n",
+                  "Bot táctico de estadísticas y clases para **Warzone**.\n" +
+                  "Datos sincronizados directamente con la base de datos de **wzstats.gg**.\n",
                 color: 0x9146ff,
                 fields: [
+                  {
+                    name: "🏆 `/ranking`",
+                    value:
+                      "Muestra el **Top de armas META más usadas** del parche actual en Warzone, con su estado de balance (Buff, Nerf o New).",
+                    inline: false,
+                  },
                   {
                     name: "⚔️ `/compare [weapon1] [weapon2]`",
                     value:
                       "Compara dos armas frente a frente (TTK, rango, ADS, cadencia y tabla de daño por zonas).\n" +
-                      "Ej: `/compare weapon1:an-94 weapon2:mpc-25`\n" +
-                      "*(Cuenta con autocompletado en tiempo real mientras escribís)*.",
+                      "Ej: `/compare weapon1:an-94 weapon2:mpc-25`",
+                    inline: false,
+                  },
+                  {
+                    name: "🛠️ `/meta [weapon]`",
+                    value:
+                      "Muestra los **5 accesorios recomendados**, el rol/tier del arma y el **código oficial para importar la clase** directamente en el armero de Warzone.\n" +
+                      "Ej: `/meta weapon:kar98k`",
                     inline: false,
                   },
                   {
                     name: "🔫 `/weapons`",
                     value:
-                      "Muestra el catálogo completo de las 60 armas compatibles con paginación interactiva (◀️ / ▶️).",
+                      "Muestra el catálogo completo de armas compatibles para comparar, con paginación interactiva (◀️ / ▶️).",
                     inline: false,
                   },
                   {
-                    name: "🏓 `/ping`",
-                    value: "Comprueba el estado y la latencia del bot.",
+                    name: "🚀 `/ping`",
+                    value:
+                      "Comprueba el estado del enlace y la latencia del bot.",
                     inline: false,
                   },
                 ],
                 footer: {
-                  text: "Tip: Podés escribir solo las primeras letras del arma para encontrarla rápido.",
+                  text: "Tip: Podés escribir solo las primeras letras del arma en los comandos para autocompletarla rápido.",
                 },
               },
             ],
-            flags: 64, // Ephemeral (solo lo ve quien ejecuta el comando)
+            flags: 64, // Ephemeral (solo visible para quien ejecuta el comando)
           },
         });
       }

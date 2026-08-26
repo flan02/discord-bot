@@ -79,7 +79,7 @@ async function register() {
 
   if (response.ok) {
     console.log(
-      "✅ Comandos (/ping, /ranking, /meta, /compare, /weapons) registrados exitosamente a nivel global!",
+      "✅ Comandos (/ping, /ranking, /meta, /compare, /weapons, /help) registrados exitosamente a nivel global!",
     );
   } else {
     console.error("❌ Error al registrar comandos:", await response.text());
