@@ -1,41 +1,6 @@
 // services/meta.ts
+import { Attachment, MetaRankedWeapon, WeaponBuild } from "@/types";
 import * as cheerio from "cheerio";
-
-export type WeaponCategory =
-  | "Fusil de asalto"
-  | "Subfusil"
-  | "Fusil de precisión"
-  | "Ametralladora ligera"
-  | "Fusil de combate"
-  | "Escopeta"
-  | "Pistola"
-  | "Warzone Meta";
-
-export interface Attachment {
-  slot: string;
-  name: string;
-}
-
-export interface WeaponBuild {
-  id: string;
-  name: string;
-  category?: WeaponCategory | string;
-  tier?: string;
-  rank?: string;
-  buildType?: string;
-  code?: string | null;
-  image?: string;
-  attachments: Attachment[];
-  aliases?: string[];
-}
-
-export interface MetaRankedWeapon {
-  name: string;
-  slug: string;
-  rank?: string;
-  category?: string;
-  status?: string;
-}
 
 // Fallback local por si la web llega a fallar
 export const META_LOADOUTS: WeaponBuild[] = [

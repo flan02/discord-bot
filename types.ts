@@ -3,21 +3,109 @@ export interface Attachment {
   name: string; // monolithic suppressor
 }
 
+export const InteractionType = {
+  PING: 1,
+  APPLICATION_COMMAND: 2,
+  MESSAGE_COMPONENT: 3,
+  APPLICATION_COMMAND_AUTOCOMPLETE: 4,
+};
+
+export const InteractionResponseType = {
+  PONG: 1,
+  CHANNEL_MESSAGE_WITH_SOURCE: 4,
+  DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE: 5,
+  DEFERRED_UPDATE_MESSAGE: 6,
+  UPDATE_MESSAGE: 7,
+  APPLICATION_COMMAND_AUTOCOMPLETE_RESULT: 8,
+};
+
+export type WeaponCategory =
+  | "Fusil de asalto"
+  | "Subfusil"
+  | "Fusil de precisión"
+  | "Ametralladora ligera"
+  | "Fusil de combate"
+  | "Escopeta"
+  | "Pistola"
+  | "Warzone Meta";
+
+export interface WeaponStats {
+  name: string;
+  slug?: string;
+  ttkShort: number; // Corto alcance (ms)
+  ttkLong: number; // Largo alcance (ms)
+  fireRate: number; // rpm
+  damagePerMag: number;
+  bulletVelocity: number; // m/s
+  effectiveRange: number; // metros
+  recoil: number; // °/s vertical o general
+  adsTime: number; // ms
+  moveSpeed: number; // m/s
+  hipfireSpread: number; // °
+  hitboxes: {
+    distanceRanges: string[];
+    head: number[];
+    neck: number[];
+    chest: number[];
+    extremities: number[];
+  };
+}
+
+export interface Attachment {
+  slot: string;
+  name: string;
+}
+
 export interface WeaponBuild {
   id: string;
   name: string;
-  category:
-    | "AR"
-    | "SMG"
-    | "LMG"
-    | "Shotgun"
-    | "Marksman Rifle"
-    | "Sniper Rifle"
-    | "Pistol";
-  tier: "Meta absolute" | "Meta" | "Viable";
+  category?: WeaponCategory | string;
+  tier?: string;
+  rank?: string;
+  buildType?: string;
+  code?: string | null;
   image?: string;
   attachments: Attachment[];
+  aliases?: string[];
 }
+
+export interface MetaRankedWeapon {
+  name: string;
+  slug: string;
+  rank?: string;
+  category?: string;
+  status?: string;
+}
+
+// export interface WeaponBuild {
+//   id: string;
+//   name: string;
+//   category:
+//     | "AR"
+//     | "SMG"
+//     | "LMG"
+//     | "Shotgun"
+//     | "Marksman Rifle"
+//     | "Sniper Rifle"
+//     | "Pistol";
+//   tier: "Meta absolute" | "Meta" | "Viable";
+//   image?: string;
+//   attachments: Attachment[];
+// }
+
+export const BLACKLIST = [
+  "warzone",
+  "meta",
+  "ranking",
+  "battle royale",
+  "resurgimiento",
+  "tier list",
+  "temporada",
+  "stats",
+  "armas",
+  "clases",
+  "top",
+];
 
 export const BANNED_WEAPONS = [
   "RAM-7",

@@ -1,27 +1,5 @@
 import * as cheerio from "cheerio";
-import { MetaRankedWeapon } from "./meta";
-
-export interface WeaponStats {
-  name: string;
-  slug?: string;
-  ttkShort: number; // Corto alcance (ms)
-  ttkLong: number; // Largo alcance (ms)
-  fireRate: number; // rpm
-  damagePerMag: number;
-  bulletVelocity: number; // m/s
-  effectiveRange: number; // metros
-  recoil: number; // °/s vertical o general
-  adsTime: number; // ms
-  moveSpeed: number; // m/s
-  hipfireSpread: number; // °
-  hitboxes: {
-    distanceRanges: string[];
-    head: number[];
-    neck: number[];
-    chest: number[];
-    extremities: number[];
-  };
-}
+import { BLACKLIST, MetaRankedWeapon, WeaponStats } from "@/types";
 
 // Variable en memoria RAM para evitar el límite de 2MB de Vercel
 let cachedStatsMap: Map<string, WeaponStats> | null = null;
@@ -39,41 +17,6 @@ function normalizeName(str: string): string {
 function parseNumber(text: string): number {
   const match = text.match(/[\d.]+/);
   return match ? parseFloat(match[0]) : 0;
-}
-
-function renderBar(
-  valA: number,
-  valB: number,
-  lowerIsBetter = false,
-  maxScore = 10,
-): { barA: string; barB: string } {
-  if (valA === 0 && valB === 0) {
-    return { barA: "🟪".repeat(maxScore), barB: "⬛".repeat(maxScore) };
-  }
-
-  const winA = lowerIsBetter ? valA < valB : valA > valB;
-  const winB = lowerIsBetter ? valB < valA : valB > valA;
-
-  const maxVal = Math.max(valA, valB);
-  const ratioA = Math.max(1, Math.round((valA / maxVal) * maxScore));
-  const ratioB = Math.max(1, Math.round((valB / maxVal) * maxScore));
-
-  const barA = `${"🟪".repeat(ratioA)}${"⬛".repeat(maxScore - ratioA)}${winA ? " 🏆" : ""}`;
-  const barB = `${"🟪".repeat(ratioB)}${"⬛".repeat(maxScore - ratioB)}${winB ? " 🏆" : ""}`;
-
-  return { barA, barB };
-}
-
-// Formateador alineado con ancho fijo dentro de backticks
-function alignRow(
-  name: string,
-  value: string | number,
-  unit = "",
-  nameWidth = 8,
-  valWidth = 7,
-): string {
-  const formattedVal = `${value}${unit ? " " + unit : ""}`;
-  return `\`${name.padEnd(nameWidth, " ")} ${formattedVal.padStart(valWidth, " ")}\``;
 }
 
 export async function fetchAllWeapons(): Promise<MetaRankedWeapon[]> {
@@ -103,19 +46,6 @@ export async function fetchAllWeapons(): Promise<MetaRankedWeapon[]> {
     });
 
     // Filtramos encabezados de secciones que no son armas
-    const BLACKLIST = [
-      "warzone",
-      "meta",
-      "ranking",
-      "battle royale",
-      "resurgimiento",
-      "tier list",
-      "temporada",
-      "stats",
-      "armas",
-      "clases",
-      "top",
-    ];
 
     // const BLACKLIST_REGEX = /\b(tier|warzone|meta|ranking|battle|royale|resurgimiento|temporada|stats|armas|clases|top)\b/i;
 
@@ -351,98 +281,6 @@ export async function fetchAllWeaponStats(): Promise<Map<string, WeaponStats>> {
 }
 
 // Consulta el endpoint exacto para rellenar las métricas de un arma bajo demanda
-// export async function getWeaponRealStats(
-//   weapon: WeaponStats,
-// ): Promise<WeaponStats> {
-//   // Si ya tiene las hitboxes cargadas, no vuelve a consultar
-//   if (weapon.hitboxes.head.length > 0) return weapon;
-
-//   const url = `https://app.wzstats.gg/wz2/loadout-builder/context?weaponId=${weapon.slug}&tierlist=alMazrah&game=wz2&addAttachmentsLockedByDefault=true&language=es`;
-
-//   try {
-//     const res = await fetch(url, {
-//       headers: {
-//         "User-Agent":
-//           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-//         Accept: "application/json",
-//         Referer: "https://wzstats.gg/",
-//       },
-//     });
-
-//     if (!res.ok) return weapon;
-
-//     const json = await res.json();
-//     const base = json.data?.baseStats;
-//     if (!base) return weapon;
-
-//     const ranges = base.damageRanges || [];
-//     const distanceRanges: string[] = [];
-//     const head: number[] = [];
-//     const neck: number[] = [];
-//     const chest: number[] = [];
-//     const extremities: number[] = [];
-
-//     const headMod = base.headshotModifier || 1;
-//     const neckMod = base.neckModifier || 1;
-//     const chestMod = base.upperChestModifier || 1;
-//     const extMod = base.upperLegsModifier || base.lowerBodyModifier || 0.8;
-
-//     for (let i = 0; i < ranges.length; i++) {
-//       const r = ranges[i];
-//       const start = r.start || 0;
-//       const end = r.end || 0;
-//       const dmg = r.damage || 0;
-
-//       if (end === 0 || i === ranges.length - 1) {
-//         distanceRanges.push(`${start}m+`);
-//       } else {
-//         distanceRanges.push(`${start}-${end}m`);
-//       }
-
-//       head.push(Math.round(dmg * headMod));
-//       neck.push(Math.round(dmg * neckMod));
-//       chest.push(Math.round(dmg * chestMod));
-//       extremities.push(Math.round(dmg * extMod));
-//     }
-
-//     const rpm = base.fireRate || 600;
-//     const ttkShort =
-//       chest[0] > 0
-//         ? Math.round((Math.ceil(250 / chest[0]) - 1) * ((60 / rpm) * 1000))
-//         : 0;
-//     const ttkLong =
-//       chest[chest.length - 1] > 0
-//         ? Math.round(
-//             (Math.ceil(250 / chest[chest.length - 1]) - 1) *
-//               ((60 / rpm) * 1000),
-//           )
-//         : 0;
-
-//     weapon.ttkShort = ttkShort;
-//     weapon.ttkLong = ttkLong;
-//     weapon.fireRate = rpm;
-//     weapon.damagePerMag = Math.round((base.magSize || 30) * (chest[0] || 30));
-//     weapon.bulletVelocity = base.bulletVelocity || 0;
-//     weapon.effectiveRange = ranges[0]?.end || 0;
-//     weapon.adsTime =
-//       base.aimDownSightSpeed || base.adsSpeed || base.adsTime || 0;
-//     weapon.moveSpeed = base.movementSpeed || 0;
-//     weapon.hipfireSpread = base.hipfireMaxSpread || 0;
-//     weapon.hitboxes = {
-//       distanceRanges,
-//       head,
-//       neck,
-//       chest,
-//       extremities,
-//     };
-
-//     return weapon;
-//   } catch (err) {
-//     console.error(`Error al enriquecer stats para ${weapon.slug}:`, err);
-//     return weapon;
-//   }
-// }
-
 export async function getWeaponRealStats(
   weapon: WeaponStats,
 ): Promise<WeaponStats> {
@@ -562,83 +400,4 @@ export async function getWeaponRealStats(
     console.error(`Error al enriquecer stats para ${weapon.slug}:`, err);
     return weapon;
   }
-}
-
-export function formatComparisonResponse(
-  w1: WeaponStats,
-  w2: WeaponStats,
-  showTable = false,
-) {
-  const nameWidth = Math.max(w1.name.length, w2.name.length, 6);
-
-  const ttkShortBars = renderBar(w1.ttkShort, w2.ttkShort, true);
-  const rangeBars = renderBar(w1.effectiveRange, w2.effectiveRange, false);
-  const adsBars = renderBar(w1.adsTime, w2.adsTime, true);
-  const fireRateBars = renderBar(w1.fireRate, w2.fireRate, false);
-
-  const fields: Array<{ name: string; value: string; inline?: boolean }> = [
-    {
-      name: "⚡ Letalidad (TTK Corto Alcance)",
-      value: `${alignRow(w1.name, w1.ttkShort || "N/D", w1.ttkShort ? "ms" : "", nameWidth, 7)} ${ttkShortBars.barA}\n${alignRow(w2.name, w2.ttkShort || "N/D", w2.ttkShort ? "ms" : "", nameWidth, 7)} ${ttkShortBars.barB}`,
-      inline: false,
-    },
-    {
-      name: "📏 Rango Efectivo",
-      value: `${alignRow(w1.name, w1.effectiveRange || "N/D", w1.effectiveRange ? "m" : "", nameWidth, 6)} ${rangeBars.barA}\n${alignRow(w2.name, w2.effectiveRange || "N/D", w2.effectiveRange ? "m" : "", nameWidth, 6)} ${rangeBars.barB}`,
-      inline: false,
-    },
-    {
-      name: "🏃 Agilidad (Tiempo de Apuntado ADS)",
-      value: `${alignRow(w1.name, w1.adsTime || "N/D", w1.adsTime ? "ms" : "", nameWidth, 7)} ${adsBars.barA}\n${alignRow(w2.name, w2.adsTime || "N/D", w2.adsTime ? "ms" : "", nameWidth, 7)} ${adsBars.barB}`,
-      inline: false,
-    },
-    {
-      name: "🔥 Cadencia de Fuego",
-      value: `${alignRow(w1.name, w1.fireRate || "N/D", w1.fireRate ? "RPM" : "", nameWidth, 8)} ${fireRateBars.barA}\n${alignRow(w2.name, w2.fireRate || "N/D", w2.fireRate ? "RPM" : "", nameWidth, 8)} ${fireRateBars.barB}`,
-      inline: false,
-    },
-  ];
-
-  if (showTable) {
-    const buildWeaponDamageBlock = (w: WeaponStats) => {
-      const ranges = w.hitboxes?.distanceRanges?.length
-        ? w.hitboxes.distanceRanges
-        : ["Corta", "Media", "Larga"];
-
-      const r1 = (ranges[0] || "0-20m").padEnd(10, " ");
-      const r2 = (ranges[1] || "20-40m").padEnd(10, " ");
-      const r3 = (ranges[2] || "40m+").padEnd(8, " ");
-
-      const getVal = (arr: number[] = [], idx: number) =>
-        arr[idx] ? String(arr[idx]).padEnd(10, " ") : "-".padEnd(10, " ");
-
-      const header =
-        `Zona           | ${r1} | ${r2} | ${r3}\n` + "─".repeat(48);
-      const rowHead = `Cabeza         | ${getVal(w.hitboxes?.head, 0)} | ${getVal(w.hitboxes?.head, 1)} | ${getVal(w.hitboxes?.head, 2).trim()}`;
-      const rowChest = `Pecho / Torso  | ${getVal(w.hitboxes?.chest, 0)} | ${getVal(w.hitboxes?.chest, 1)} | ${getVal(w.hitboxes?.chest, 2).trim()}`;
-      const rowExt = `Extremidades   | ${getVal(w.hitboxes?.extremities, 0)} | ${getVal(w.hitboxes?.extremities, 1)} | ${getVal(w.hitboxes?.extremities, 2).trim()}`;
-
-      return `**${w.name}**\n\`\`\`text\n${header}\n${rowHead}\n${rowChest}\n${rowExt}\n\`\`\``;
-    };
-
-    fields.push({
-      name: "\n🎯 Perfil de Daño y Caída por Distancia",
-      value: `${buildWeaponDamageBlock(w1)}\n${buildWeaponDamageBlock(w2)}`,
-      inline: false,
-    });
-  }
-
-  return {
-    embeds: [
-      {
-        title: `⚔️ Comparativa: ${w1.name} vs ${w2.name}`,
-        color: 0x9146ff,
-        fields,
-        footer: {
-          text: "Datos extraídos de wzstats.gg • Warzone Battle Royale",
-        },
-        timestamp: new Date().toISOString(),
-      },
-    ],
-  };
 }

@@ -42,7 +42,7 @@ async function testWeaponContext(weaponSlug) {
 }
 
 async function run() {
-  await testWeaponContext("an-94");
+  await testWeaponContext("x9-maverick");
   await testWeaponContext("mk35-isr");
 }
 
