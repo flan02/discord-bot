@@ -18,6 +18,10 @@ A bot who sends data to from my app to Discord
 
 [url](https://app.wzstats.gg/wz2/loadout-builder/context?weaponId=${weaponSlug}&tierlist=alMazrah&game=wz2&addAttachmentsLockedByDefault=true&language=es)
 
+### data-weapons-stats
+
+- contains the data of the weapons stats, you can find it in the `data-weapons-stats` folder
+
 #### Discord developer portal
 
 [url](https://discord.com/developers/applications/1535861016347418725/information)
