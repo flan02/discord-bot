@@ -22,6 +22,10 @@ A bot who sends data to from my app to Discord
 
 - contains the data of the weapons stats, you can find it in the `data-weapons-stats` folder
 
+### Next steps
+
+- create a /build command to retrieve best builds for bo7 weapons
+
 #### Discord developer portal
 
 [url](https://discord.com/developers/applications/1535861016347418725/information)
