@@ -77,22 +77,6 @@ export interface MetaRankedWeapon {
   status?: string;
 }
 
-// export interface WeaponBuild {
-//   id: string;
-//   name: string;
-//   category:
-//     | "AR"
-//     | "SMG"
-//     | "LMG"
-//     | "Shotgun"
-//     | "Marksman Rifle"
-//     | "Sniper Rifle"
-//     | "Pistol";
-//   tier: "Meta absolute" | "Meta" | "Viable";
-//   image?: string;
-//   attachments: Attachment[];
-// }
-
 export const BLACKLIST = [
   "warzone",
   "meta",
