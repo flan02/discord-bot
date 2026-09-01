@@ -25,6 +25,7 @@ A bot who sends data to from my app to Discord
 ### Next steps
 
 - create a /build command to retrieve best builds for bo7 weapons
+- update bot with MW4 meta weapons
 
 #### Discord developer portal
 
