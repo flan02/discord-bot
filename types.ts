@@ -182,3 +182,10 @@ export const FALLOUT_WEAPONS = [
   "VS-RECON",
   "HAWKER-HX",
 ];
+
+export const ALLOWED_MW4_WEAPONS: string[] = [];
+export const ALLOWED_MW4_WEAPONS_SET = new Set(
+  ALLOWED_MW4_WEAPONS.map((name) =>
+    name.toLowerCase().replace(/[^a-z0-9]/g, ""),
+  ),
+);
