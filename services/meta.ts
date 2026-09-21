@@ -254,3 +254,15 @@ export function formatRankingEmbed(list: MetaRankedWeapon[]) {
     timestamp: new Date().toISOString(),
   };
 }
+
+export function sanitizedMetaList(
+  list: MetaRankedWeapon[],
+): MetaRankedWeapon[] {
+  const excludedTiers = new Set(["A TIER", "B TIER", "C TIER"]);
+
+  const curatedList = list.filter((item: MetaRankedWeapon) => {
+    const tierName = item.name.trim().toUpperCase();
+    return !excludedTiers.has(tierName);
+  });
+  return curatedList;
+}

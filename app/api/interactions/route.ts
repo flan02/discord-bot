@@ -5,6 +5,7 @@ import {
   findWeaponBuild,
   formatBuildEmbed,
   formatRankingEmbed,
+  sanitizedMetaList,
 } from "@/services/meta";
 import { fetchAllWeaponStats, getWeaponRealStats } from "@/services/stats";
 import { findWeaponInMap, formatComparisonResponse } from "@/utils/helpers";
@@ -215,7 +216,8 @@ export async function POST(req: Request) {
       // Comando: /ranking
       if (commandName === "ranking") {
         const list = await fetchMetaRanking();
-        const embed = formatRankingEmbed(list);
+        const curatedList = sanitizedMetaList(list);
+        const embed = formatRankingEmbed(curatedList);
         return NextResponse.json({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: { embeds: [embed], flags: 64 },
