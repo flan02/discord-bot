@@ -30,3 +30,7 @@ A bot who sends data to from my app to Discord
 #### Discord developer portal
 
 [url](https://discord.com/developers/applications/1535861016347418725/information)
+
+#### COD MW4
+
+- game will be released on 2026-10-23
